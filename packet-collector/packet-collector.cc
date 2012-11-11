@@ -56,12 +56,12 @@ int get_packets(int sockfd, packet* p) {
 
   fd_set rfds;
   FD_ZERO(&rfds);
-  FD_SET(sockfd, &rfds);
 
   pthread_create(&thread, NULL, timer, &timeout);
  
   int i;
   for(i = 0; i < MAX_ENTRIES;) {
+    FD_SET(sockfd, &rfds);
     if(select(sockfd+1, &rfds, NULL, NULL, &tout) > 0) {
       p[i].size = recv(sockfd, &p[i].buf, BUF_SIZE, 0); 
       i++;
