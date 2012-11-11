@@ -6,7 +6,7 @@
 #include <unistd.h>
 #include <pthread.h>
 
-#define PORT 9876  
+#define PORT 9877
 #define BUF_SIZE 4096
 #define MAX_ENTRIES 1024
 
@@ -17,11 +17,6 @@ typedef struct _packet {
   int size;
   char buf[BUF_SIZE];
 } packet;
-
-typedef struct _timeout {
-  pthread_mutex_t lock;
-  int timeout;
-} timeout;
 
 int init_socket() {
   int sockfd;
@@ -46,21 +41,14 @@ int init_socket() {
 }
 
 void *timer(void *data) {
-  usleep(TIMEOUT*1000);
-  
-  timeout *t = (timeout *)data;
-  pthread_mutex_lock(&t->lock);
-  t->timeout = 1;
-  pthread_mutex_unlock(&t->lock);
+  usleep(TIMEOUT*1000);  
+  *(int *)data = 1;
   return 0;
 }
 
 int get_packets(int sockfd, packet* p) {
-  timeout t;
+  int timeout = 0;
   pthread_t thread;
-
-  t.timeout = 0;
-  pthread_mutex_init(&t.lock, NULL);
 
   struct timeval tout;
   tout.tv_sec = 0;
@@ -70,17 +58,15 @@ int get_packets(int sockfd, packet* p) {
   FD_ZERO(&rfds);
   FD_SET(sockfd, &rfds);
 
-  pthread_create(&thread, NULL, timer, &t);
+  pthread_create(&thread, NULL, timer, &timeout);
  
   int i;
   for(i = 0; i < MAX_ENTRIES;) {
-    if(select(sockfd+1, &rfds, NULL, NULL, &tout)) {
+    if(select(sockfd+1, &rfds, NULL, NULL, &tout) > 0) {
       p[i].size = recv(sockfd, &p[i].buf, BUF_SIZE, 0); 
       i++;
     }
-    pthread_mutex_lock(&t.lock);
-    if(t.timeout == 1) break;
-    pthread_mutex_unlock(&t.lock);
+    if(timeout == 1) break;
   }
   pthread_cancel(thread);
   return i;
