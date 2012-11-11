@@ -54,6 +54,7 @@ void *timer(void *data) {
   t->timeout = 1;
   shutdown(t->sockfd, SHUT_RDWR);
   pthread_mutex_unlock(&t->lock);
+  return 0;
 }
 
 int get_packets(packet* p) {
