@@ -52,6 +52,7 @@ void *timer(void *data) {
   pthread_mutex_lock(&t->lock);
   t->timeout = 1;
   pthread_mutex_unlock(&t->lock);
+  return 0;
 }
 
 int get_packets(int sockfd, packet* p) {
