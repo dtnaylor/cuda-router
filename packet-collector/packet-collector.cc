@@ -11,7 +11,7 @@
 #define MAX_ENTRIES 1024
 
 // in miliseconds
-#define TIMEOUT 5000
+#define TIMEOUT 100
 
 typedef struct _packet {
   int size;

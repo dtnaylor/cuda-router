@@ -1,6 +1,6 @@
 elementclass PacketSink {
     |
-    input -> Socket(UDP, 127.0.0.1, 9876, CLIENT true) -> Queue -> output;
+    input -> Socket(UDP, 127.0.0.1, 9877, CLIENT true) -> Queue -> output;
 }
 
 RandomSource(64) -> UDPIPEncap(123.123.123.123, 1234, 210.210.210.210, 4321) -> //IPPrint("out of source") ->
