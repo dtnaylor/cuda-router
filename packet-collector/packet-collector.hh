@@ -22,5 +22,6 @@ typedef struct _packet {
 } packet;
 
 int get_packets(int sockfd, packet* p);
+int init_socket();
 
 #endif /* PACKET_COLLECTOR_H */

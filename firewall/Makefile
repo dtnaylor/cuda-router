@@ -117,6 +117,8 @@ endif
 # Common includes and paths for CUDA
 INCLUDES      := -I$(CUDA_INC_PATH) -I. -I../common/inc -I../packet-collector
 
+CXXFLAGS := -DCUDA_CODE
+
 # Target rules
 all: build
 
@@ -125,8 +127,9 @@ build: firewall
 firewall.o: firewall.cu
 	$(NVCC) $(NVCCFLAGS) $(EXTRA_NVCCFLAGS) $(GENCODE_FLAGS) $(INCLUDES) -o $@ -c $<
 
-firewall: firewall.o
-	$(GCC) $(CCFLAGS) -o $@ $+ $(LDFLAGS) $(EXTRA_LDFLAGS)
+firewall: firewall.o ../packet-collector/packet-collector.o
+	$(GCC) $(CCFLAGS) -o $@ $+ $(LDFLAGS) $(EXTRA_LDFLAGS) 
+
 
 run: build
 	./firewall
