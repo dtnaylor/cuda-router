@@ -123,17 +123,20 @@ CXXFLAGS := -DCUDA_CODE
 # Target rules
 all: build
 
-build: firewall
+build: router
 
 firewall.o: firewall.cu
 	$(NVCC) $(NVCCFLAGS) $(EXTRA_NVCCFLAGS) $(GENCODE_FLAGS) $(INCLUDES) -o $@ -c $<
 
-firewall: firewall.o ../packet-collector/packet-collector.o
+router.o: router.cu
+	$(NVCC) $(NVCCFLAGS) $(EXTRA_NVCCFLAGS) $(GENCODE_FLAGS) $(INCLUDES) -o $@ -c $<
+
+router: router.o firewall.o ../packet-collector/packet-collector.o
 	$(GCC) $(CCFLAGS) -o $@ $+ $(LDFLAGS) $(EXTRA_LDFLAGS) 
 
 
 run: build
-	./firewall
+	./router
 
 clean:
-	rm -f firewall firewall.o
+	rm -f router router.o firewall.o

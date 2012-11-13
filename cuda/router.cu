@@ -1,129 +1,6 @@
-// System includes
-#include <stdio.h>
-#include <assert.h>
-#include <netinet/ip.h>
-#include <netinet/udp.h>
-
-// CUDA runtime
-#include <cuda_runtime.h>
-
-// Helper functions and utilities to work with CUDA
-#include <helper_functions.h>
-
-// Packet collector
-#include <packet-collector.hh>
-
+#include <router.h>
 
 #define DEFAULT_BLOCK_SIZE 32
-
-#define RESULT_ERROR -1
-#define RESULT_DROP -2
-#define RESULT_UNSET -3
-
-
-/**
- * Checks the supplied cuda error for failure
- */
-cudaError_t check_error(cudaError_t error, char* error_str, int line)
-{
-	if (error != cudaSuccess) {
-		fprintf(stderr, "%s returned error (line %d): %s\n", error_str, line, cudaGetErrorString(error));
-		exit(EXIT_FAILURE);
-	}
-	return error;
-}
-
-/**
- * Matrix multiplication (CUDA Kernel) on the device: C = A * B
- * wA is A's width and wB is B's width
- */
-__global__ void
-process_packets(packet *p, int *results, int num_packets, int block_size)
-{
-
-	int packet_index = blockIdx.x * block_size + threadIdx.x;
-	struct ip *ip_hdr = (struct ip*)p[packet_index].buf;
-	if (packet_index < num_packets) {
-		results[packet_index] = ip_hdr->ip_p;
-	} else {
-		results[packet_index] = RESULT_UNSET;
-	}
-
-
-/*
-    // Block index
-    int bx = blockIdx.x;
-    int by = blockIdx.y;
-
-    // Thread index
-    int tx = threadIdx.x;
-    int ty = threadIdx.y;
-
-    // Index of the first sub-matrix of A processed by the block
-    int aBegin = wA * BLOCK_SIZE * by;
-
-    // Index of the last sub-matrix of A processed by the block
-    int aEnd   = aBegin + wA - 1;
-
-    // Step size used to iterate through the sub-matrices of A
-    int aStep  = BLOCK_SIZE;
-
-    // Index of the first sub-matrix of B processed by the block
-    int bBegin = BLOCK_SIZE * bx;
-
-    // Step size used to iterate through the sub-matrices of B
-    int bStep  = BLOCK_SIZE * wB;
-
-    // Csub is used to store the element of the block sub-matrix
-    // that is computed by the thread
-    float Csub = 0;
-
-    // Loop over all the sub-matrices of A and B
-    // required to compute the block sub-matrix
-    for (int a = aBegin, b = bBegin;
-         a <= aEnd;
-         a += aStep, b += bStep)
-    {
-
-        // Declaration of the shared memory array As used to
-        // store the sub-matrix of A
-        __shared__ float As[BLOCK_SIZE][BLOCK_SIZE];
-
-        // Declaration of the shared memory array Bs used to
-        // store the sub-matrix of B
-        __shared__ float Bs[BLOCK_SIZE][BLOCK_SIZE];
-
-        // Load the matrices from device memory
-        // to shared memory; each thread loads
-        // one element of each matrix
-        As[ty][tx] = A[a + wA * ty + tx];
-        Bs[ty][tx] = B[b + wB * ty + tx];
-
-        // Synchronize to make sure the matrices are loaded
-        __syncthreads();
-
-        // Multiply the two matrices together;
-        // each thread computes one element
-        // of the block sub-matrix
-#pragma unroll
-
-        for (int k = 0; k < BLOCK_SIZE; ++k)
-        {
-            Csub += As[ty][k] * Bs[k][tx];
-        }
-
-        // Synchronize to make sure that the preceding
-        // computation is done before loading two new
-        // sub-matrices of A and B in the next iteration
-        __syncthreads();
-    }
-
-    // Write the block sub-matrix to device memory;
-    // each thread writes one element
-    int c = wB * BLOCK_SIZE * by + BLOCK_SIZE * bx;
-    C[c + wB * ty + tx] = Csub;
-	*/
-}
 
 
 /**
@@ -184,7 +61,7 @@ int run(int argc, char **argv, int block_size, int sockfd)
 
 
     // Performs warmup operation so subsequent executions have accurate timing
-    process_packets<<< blocks_in_grid, threads_in_block >>>(d_p, d_results, num_packets, block_size);
+    process_packets_firewall<<< blocks_in_grid, threads_in_block >>>(d_p, d_results, num_packets, block_size);
     cudaDeviceSynchronize();
 
 
@@ -199,7 +76,7 @@ int run(int argc, char **argv, int block_size, int sockfd)
     check_error(cudaEventRecord(start, NULL), "Record start event", __LINE__);
 
     // Execute the kernel
-    process_packets<<< blocks_in_grid, threads_in_block >>>(d_p, d_results, num_packets, block_size);
+    process_packets_firewall<<< blocks_in_grid, threads_in_block >>>(d_p, d_results, num_packets, block_size);
 
     // Record the stop event
     check_error(cudaEventRecord(stop, NULL), "Record stop event", __LINE__);
@@ -311,16 +188,9 @@ int main(int argc, char **argv)
         cudaSetDevice(devID);
     }
 
-    cudaError_t error;
     cudaDeviceProp deviceProp;
-    error = cudaGetDevice(&devID);
-
-    if (error != cudaSuccess)
-    {
-        printf("cudaGetDevice returned error code %d, line(%d)\n", error, __LINE__);
-    }
-
-    error = cudaGetDeviceProperties(&deviceProp, devID);
+    check_error(cudaGetDevice(&devID), "cudaGetDevice", __LINE__);
+    check_error(cudaGetDeviceProperties(&deviceProp, devID), "cudaGetDeviceProperties", __LINE__);
 
     if (deviceProp.computeMode == cudaComputeModeProhibited)
     {
@@ -328,14 +198,8 @@ int main(int argc, char **argv)
         exit(EXIT_SUCCESS);
     }
 
-    if (error != cudaSuccess)
-    {
-        printf("cudaGetDeviceProperties returned error code %d, line(%d)\n", error, __LINE__);
-    }
-    else
-    {
-        printf("GPU Device %d: \"%s\" with compute capability %d.%d\n\n", devID, deviceProp.name, deviceProp.major, deviceProp.minor);
-    }
+    printf("GPU Device %d: \"%s\" with compute capability %d.%d\n\n", devID, deviceProp.name, deviceProp.major, deviceProp.minor);
+	
 	
 	// Set up the socket for receiving packets from click
     int sockfd = init_socket();
@@ -345,11 +209,9 @@ int main(int argc, char **argv)
 
 	//test(sockfd);
 
-
-
 	sleep(5);
 
+	// Start the router!
     int result = run(argc, argv, block_size, sockfd);
-
     exit(result);
 }

@@ -1,5 +1,7 @@
 #include "packet-collector.hh"
 
+int batch_size = DEFAULT_BATCH_SIZE;
+
 int init_socket() {
   int sockfd;
   struct sockaddr_in servaddr;
@@ -22,6 +24,17 @@ int init_socket() {
   return sockfd;
 }
 
+int set_batch_size(int s) {
+	if (s > 0) {
+		batch_size = s;
+	}
+	return batch_size;
+}
+
+int get_batch_size() {
+	return batch_size;
+}
+
 void *timer(void *data) {
   usleep(TIMEOUT*1000);  
   *(int *)data = 1;
@@ -42,7 +55,7 @@ int get_packets(int sockfd, packet* p) {
   pthread_create(&thread, NULL, timer, &timeout);
  
   int i;
-  for(i = 0; i < MAX_ENTRIES;) {
+  for(i = 0; i < batch_size;) {
     FD_SET(sockfd, &rfds);
     if(select(sockfd+1, &rfds, NULL, NULL, &tout) > 0) {
       p[i].size = recv(sockfd, &p[i].buf, BUF_SIZE, 0); 
@@ -61,7 +74,7 @@ int main() {
     return -1;
   }
 
-  packet* p = (packet *)malloc(sizeof(packet)*MAX_ENTRIES);
+  packet* p = (packet *)malloc(sizeof(packet)*batch_size);
   
   while(1) {
     int num_packets = get_packets(sockfd, p);
