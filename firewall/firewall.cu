@@ -11,7 +11,7 @@
 #include <helper_functions.h>
 
 // Packet collector
-#include <packet-collector.hh>
+#include <packet-collector.h>
 
 
 #define DEFAULT_BLOCK_SIZE 32
