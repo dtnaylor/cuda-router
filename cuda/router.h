@@ -16,6 +16,8 @@
 // Packet collector
 #include <packet-collector.hh>
 
+#define SWAP(a,b,type) { type tmp=(a); (a)=(b); (b)=tmp; }
+
 
 __global__ void process_packets_firewall(packet *p, int *results, int num_packets, int block_size);
 
@@ -31,5 +33,6 @@ inline cudaError_t check_error(cudaError_t error, char* error_str, int line)
 	}
 	return error;
 }
+
 
 #endif /* ROUTER_H */

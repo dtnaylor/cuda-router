@@ -2,6 +2,7 @@
 
 
 /**
+ * A CUDA kernel to be executed on the GPU.
  * Checks each packet in the array p against a set of firewall rules.
  * Fill the array results with RESULT_FORWARD, RESULT_DROP, or RESULT_UNSET
  */
