@@ -10,6 +10,8 @@ __global__ void
 process_packets_firewall(packet *p, int *results, int num_packets, int block_size)
 {
 
+	// TODO: Actually implement firewall
+
 	int packet_index = blockIdx.x * block_size + threadIdx.x;
 	struct ip *ip_hdr = (struct ip*)p[packet_index].buf;
 	if (packet_index < num_packets) {
