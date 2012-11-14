@@ -4,6 +4,8 @@
 
 /**
  * A CUDA kernel to be executed on the GPU.
+ * 
+ * Fills in the results array with the outbound port for each packet
  */
 __global__ void
 process_packets(packet *p, int *results, int num_packets, int block_size)
