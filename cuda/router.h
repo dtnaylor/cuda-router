@@ -19,7 +19,13 @@
 #define SWAP(a,b,type) { type tmp=(a); (a)=(b); (b)=tmp; }
 
 
-__global__ void process_packets_firewall(packet *p, int *results, int num_packets, int block_size);
+// Change this define to determine which processing function is used
+// (e.g., firewall, longest prefix match, etc.)
+#define FIREWALL
+
+
+__global__ void process_packets(packet *p, int *results, int num_packets, int block_size);
+void setup();
 
 
 /**

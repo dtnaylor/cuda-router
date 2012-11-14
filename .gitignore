@@ -1,4 +1,6 @@
 packet-collector/packet-collector
+*.o
+*.swp
 *~
 *.aux
 *.bbl

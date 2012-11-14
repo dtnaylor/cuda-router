@@ -1,6 +1,8 @@
 #include <router.h>
 
+
 #define DEFAULT_BLOCK_SIZE 32
+
 bool do_run = true;
 
 
@@ -53,6 +55,11 @@ int run(int argc, char **argv, int block_size, int sockfd)
 	if (get_batch_size() % threads_in_block != 0) {
 		blocks_in_grid++;  // need an extra block for the extra threads
 	}
+
+
+	// Run any processing-specific setup code needed
+	// (e.g., this might copy the FIB to GPU for LPM)
+	setup();
    
 
 	// Allocate CUDA events that we'll use for timing
@@ -91,7 +98,7 @@ int run(int argc, char **argv, int block_size, int sockfd)
 
     		// Execute the kernel
 			printf("vvvvv   Begin processing %d packets   vvvvv\n\n", num_packets);
-    		process_packets_firewall<<< blocks_in_grid, threads_in_block >>>(d_p_current, d_results_current, num_packets, block_size);
+    		process_packets<<< blocks_in_grid, threads_in_block >>>(d_p_current, d_results_current, num_packets, block_size);
 
     		// Record the stop event
     		check_error(cudaEventRecord(stop, NULL), "Record stop event", __LINE__);
@@ -199,6 +206,13 @@ void test(int sockfd)
 }
 
 
+int run_sequential(int argc, char **argv, int sockfd)
+{
+	printf("Running sequential router code on CPU only\n\n");
+	return EXIT_SUCCESS;
+}
+
+
 /**
  * Program main
  */
@@ -210,6 +224,7 @@ int main(int argc, char **argv)
         printf("Usage -device=n (n >= 0 for deviceID)\n");
         printf("      -batch=n  (Sets the number of packets in a batch; n > 0)\n");
         printf("      -block=n  (Sets the number of threads in a block; n > 0)\n");
+		printf("      -sequential  (runs router in CPU-only mode w/ sequential code)\n");
 
         exit(EXIT_SUCCESS);
     }
@@ -260,5 +275,12 @@ int main(int argc, char **argv)
 	//test(sockfd);
 
 	// Start the router!
-    return run(argc, argv, block_size, sockfd);
+    if (checkCmdLineFlag(argc, (const char **)argv, "sequential"))
+	{
+		return run_sequential(argc, argv, sockfd);
+	}
+	else
+	{
+    	return run(argc, argv, block_size, sockfd);
+	}
 }

@@ -1,5 +1,6 @@
 #include <router.h>
 
+#ifdef FIREWALL
 
 /**
  * A CUDA kernel to be executed on the GPU.
@@ -7,7 +8,7 @@
  * Fill the array results with RESULT_FORWARD, RESULT_DROP, or RESULT_UNSET
  */
 __global__ void
-process_packets_firewall(packet *p, int *results, int num_packets, int block_size)
+process_packets(packet *p, int *results, int num_packets, int block_size)
 {
 
 	// TODO: Actually implement firewall
@@ -21,3 +22,14 @@ process_packets_firewall(packet *p, int *results, int num_packets, int block_siz
 	}
 
 }
+
+/**
+ * Firewall-specific setup. This will be called a single time by router.cu 
+ * before the kernel function runs for the first time
+ */
+void setup()
+{
+	// TODO: Copy firewall rules to GPU so the kernel function can use them
+}
+
+#endif /* FIREWALL */
