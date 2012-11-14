@@ -10,7 +10,7 @@ Other options can be specified at the command line; to see a full list, run:
 
 
 To test with a stream of packets from click, launch the router first, as shown
-above, and then launch click:
+above, and then launch click (don't forget to make click first):
 
 	cd ../click/userlevel
 	./click ../conf/cuda_simple.click
