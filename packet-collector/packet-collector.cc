@@ -1,6 +1,7 @@
 #include "packet-collector.hh"
 
 int batch_size = DEFAULT_BATCH_SIZE;
+int batch_wait = DEFAULT_BATCH_WAIT;
 
 int init_socket() {
   int sockfd;
@@ -35,8 +36,19 @@ int get_batch_size() {
 	return batch_size;
 }
 
+int set_batch_wait(int s) {
+	if (s > 0) {
+		batch_wait = s;
+	}
+	return batch_wait;
+}
+
+int get_batch_wait() {
+	return batch_wait;
+}
+
 void *timer(void *data) {
-  usleep(TIMEOUT*1000);  
+  usleep(batch_wait*1000);  
   *(int *)data = 1;
   return 0;
 }

@@ -45,3 +45,11 @@ functions or the LPM functions), change the #define in router.h:
 
 	#define FIREWALL	// uses the firewall functions in firewall.cu
 	#define LPM_TRIE	// uses the lpm functions in lpm_trie.cu
+
+To control what measurements are taken during router execution, use the defines
+at the top of router.cu:
+
+	#define MEASURE_LATENCY		// measures min and max packet router latency
+	#deifne MEASURE_BANDWIDTH	// measures how many packets per second we process
+	#define MEASURE_PROCESSING_MICROBENCHMARK  // measures how long the process
+											      function takes to execute

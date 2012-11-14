@@ -12,7 +12,8 @@
 #define PORT 9877
 #define BUF_SIZE 4096
 #define DEFAULT_BATCH_SIZE 1024
-#define TIMEOUT 100 // in miliseconds
+// in milliseconds
+#define DEFAULT_BATCH_WAIT 100
 
 #define RESULT_ERROR -1
 #define RESULT_DROP -2
@@ -29,5 +30,7 @@ int get_packets(int sockfd, packet* p);
 int init_socket();
 int set_batch_size(int s);
 int get_batch_size();
+int set_batch_wait(int s);
+int get_batch_wait();
 
 #endif /* PACKET_COLLECTOR_H */

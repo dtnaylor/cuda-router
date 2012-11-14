@@ -1,5 +1,8 @@
 #include <router.h>
 
+#define MEASURE_LATENCY
+#define MEASURE_BANDWIDTH
+#define MEASURE_PROCESSING_MICROBENCHMARK
 
 #define DEFAULT_BLOCK_SIZE 32
 
@@ -64,20 +67,29 @@ int run(int argc, char **argv, int block_size, int sockfd)
 	setup();
    
 
+#ifdef MEASURE_PROCESSING_MICROBENCHMARK
 	// Allocate CUDA events that we'll use for timing
 	cudaEvent_t start;
 	check_error(cudaEventCreate(&start), "Create start event", __LINE__);
 
 	cudaEvent_t stop;
 	check_error(cudaEventCreate(&stop), "Create stop event", __LINE__);
+#endif /* MEASURE_PROCESSING_MICROBENCHMARK */
 
+#ifdef MEASURE_BANDWIDTH
+	long packets_processed = 0;
+	struct timeval bw_start, bw_stop;
+	gettimeofday(&bw_start, NULL);
+#endif /* MEASURE_BANDWIDTH */
 
-
-	/* The main loop:
-		1) Execute the CUDA kernel
-		2) While it's executing, copy the results from the last execution back to the host
-		3) While it's executing, copy the packets for the next execution to the GPU
-		4) When it finishes executing, print out some timing information   */
+#ifdef MEASURE_LATENCY
+	double max_latency, min_latency;
+	struct timeval lat_start_oldest1, lat_start_oldest2, lat_start_newest1, lat_start_newest2, lat_stop;
+	struct timeval *lat_start_oldest_current = &lat_start_oldest1;
+	struct timeval *lat_start_oldest_next = &lat_start_oldest2;
+	struct timeval *lat_start_newest_current = &lat_start_newest1;
+	struct timeval *lat_start_newest_next = &lat_start_newest2;
+#endif /* MEASURE_LATENCY */
 
 	bool data_ready = false;
 	bool results_ready = false;
@@ -91,22 +103,44 @@ int run(int argc, char **argv, int block_size, int sockfd)
 	int *d_results_current = d_results1;
 	int *d_results_previous = d_results2;
 	
+	/* The main loop:
+		1) Execute the CUDA kernel
+		2) While it's executing, copy the results from the last execution back to the host
+		3) While it's executing, copy the packets for the next execution to the GPU */
+	
 	while(do_run) {
-
+		
+		/*************************************************************
+		 *                1) EXECUTE THE CUDA KERNEL                 *
+		 *************************************************************/
 		if (data_ready) { // First execution of loop: data_ready = false
 
+#ifdef MEASURE_PROCESSING_MICROBENCHMARK
     		// Record the start event
     		check_error(cudaEventRecord(start, NULL), "Record start event", __LINE__);
+#endif /* MEASURE_PROCESSING_MICROBENCHMARK */
 
     		// Execute the kernel
 			printf("vvvvv   Begin processing %d packets   vvvvv\n\n", num_packets);
     		process_packets<<< blocks_in_grid, threads_in_block >>>(d_p_current, d_results_current, num_packets, block_size);
 
+#ifdef MEASURE_PROCESSING_MICROBENCHMARK
     		// Record the stop event
     		check_error(cudaEventRecord(stop, NULL), "Record stop event", __LINE__);
+#endif /*MEASURE_PROCESSING_MICROBENCHMARK*/
+
+
+#ifdef MEASURE_BANDWIDTH
+			packets_processed += num_packets;
+#endif /* MEASURE_BANDWIDTH */
+
 		}
 
 
+		
+		/*************************************************************
+		 *            2) COPY BACK RESULTS FROM LAST BATCH           *
+		 *************************************************************/
 		if (results_ready) { // First and second executions of loop: results_ready = false
 
 			// TODO: double-check that stuff is really executing when I think it is.
@@ -118,6 +152,13 @@ int run(int argc, char **argv, int block_size, int sockfd)
 
 			// Copy the last set of results back from the GPU
     		check_error(cudaMemcpy(h_results_previous, d_results_previous, results_size, cudaMemcpyDeviceToHost), "cudaMemcpy (h_results, d_results)", __LINE__);
+
+#ifdef MEASURE_LATENCY
+			gettimeofday(&lat_stop, NULL);
+			max_latency = (lat_stop.tv_sec - lat_start_oldest_current->tv_sec) * 1000000.0 + (lat_stop.tv_usec - lat_start_oldest_current->tv_usec);
+			min_latency = (lat_stop.tv_sec - lat_start_newest_current->tv_sec) * 1000000.0 + (lat_stop.tv_usec - lat_start_newest_current->tv_usec);
+			printf("Latencies from last batch: Max: %f msec   Min: %f msec\n", max_latency, min_latency);
+#endif /* MEASURE_LATENCY */
 		
 			// Print results
 			printf("Results from last batch:\n");
@@ -128,24 +169,38 @@ int run(int argc, char **argv, int block_size, int sockfd)
 			printf("\n\n");
 		}
 
+		
+		
+		
+		/*************************************************************
+		 *                  3) COPY NEXT BATCH TO GPU                *
+		 *************************************************************/
 		// Get next batch of packets and copy them to the GPU
 		// FIXME: We're forcing the results from the current execution to wait
 		// until we get the next batch of packets. Is this OK?
+#ifdef MEASURE_LATENCY
+		// Approx time we received the first packet of the batch
+		// (not perfect if the first packet doesn't arrive immediately)
+		gettimeofday(lat_start_oldest_next, NULL);
+#endif /* MEASURE_LATENCY */
 		num_packets = 0;
-		while (num_packets == 0) {
+		while (num_packets == 0 && do_run) {
 			num_packets = get_packets(sockfd, h_p_next);
 		}
+#ifdef MEASURE_LATENCY
+		gettimeofday(lat_start_newest_next, NULL);
+#endif /* MEASURE_LATENCY */
     	check_error(cudaMemcpy(d_p_next, h_p_next, buf_size, cudaMemcpyHostToDevice), "cudaMemcpy (d_p_next, h_p_next)", __LINE__);
 
 
 
 		if (data_ready) {
 
+#ifdef MEASURE_PROCESSING_MICROBENCHMARK
     		// Wait for the stop event to complete (which waits for the kernel to finish)
     		check_error(cudaEventSynchronize(stop), "Failed to synchronize stop event", __LINE__);
-			results_ready = true;
-
-    		float msecTotal = 0.0f;
+    		
+			float msecTotal = 0.0f;
     		check_error(cudaEventElapsedTime(&msecTotal, start, stop), "Getting time elapsed b/w events", __LINE__);
 
     		// Compute and print the performance
@@ -153,7 +208,15 @@ int run(int argc, char **argv, int block_size, int sockfd)
     		    "Performance= Time= %.3f msec, WorkgroupSize= %u threads/block\n",
     		    msecTotal,
     		    threads_in_block);
+#else
+			// Wait for kernel execution to complete
+			check_error(cudaDeviceSynchronize(), "cudaDeviceSynchronize", __LINE__);
+#endif /* MEASURE_PROCESSING_MICROBENCHMARK */
+
+
 			printf("^^^^^   Done processing batch   ^^^^^\n\n\n");
+
+			results_ready = true;
 		}
 		data_ready = true;
 
@@ -165,8 +228,22 @@ int run(int argc, char **argv, int block_size, int sockfd)
 		SWAP(d_p_current, d_p_next, packet*);
 		SWAP(h_results_current, h_results_previous, int*);
 		SWAP(d_results_current, d_results_previous, int*);
+#ifdef MEASURE_LATENCY
+		SWAP(lat_start_oldest_current, lat_start_oldest_next, struct timeval*);
+		SWAP(lat_start_newest_current, lat_start_newest_next, struct timeval*);
+#endif /* MEASURE_LATENCY */
 
 	}
+
+
+#ifdef MEASURE_BANDWIDTH
+	// Calculate how many packets we processed per second
+	gettimeofday(&bw_stop, NULL);
+	double total_time = (bw_stop.tv_sec - bw_start.tv_sec) + (bw_stop.tv_usec - bw_start.tv_usec) / 1000000.0;
+	double pkts_per_sec = double(packets_processed) / total_time;	
+
+	printf("Bandwidth: (%ld/%f) = %f packets per second\n", packets_processed, total_time, pkts_per_sec);
+#endif /* MEASURE_BANDWIDTH */
 
 
 
@@ -229,6 +306,22 @@ int run_sequential(int argc, char **argv, int sockfd)
 	setup_sequential();
 
 
+#ifdef MEASURE_PROCESSING_MICROBENCHMARK
+	struct timeval micro_start, micro_stop;
+#endif /* MEASURE_PROCESSING_MICROBENCHMARK */
+
+#ifdef MEASURE_BANDWIDTH
+	long packets_processed = 0;
+	struct timeval bw_start, bw_stop;
+	gettimeofday(&bw_start, NULL);
+#endif /* MEASURE_BANDWIDTH */
+
+#ifdef MEASURE_LATENCY
+	struct timeval lat_start_oldest, lat_start_newest, lat_stop;
+	double max_latency, min_latency;
+#endif /* MEASURE_LATENCY */
+
+
 	/* The main loop:
 		1) Get a batch of packets
 		2) Process them */
@@ -236,15 +329,46 @@ int run_sequential(int argc, char **argv, int sockfd)
 	while(do_run) {
 		
 		// Get next batch of packets
+
+#ifdef MEASURE_LATENCY
+		gettimeofday(&lat_start_oldest, NULL);
+#endif /* MEASURE_LATENCY */
 		num_packets = 0;
 		while (num_packets == 0) {
 			num_packets = get_packets(sockfd, p);
 		}
+#ifdef MEASURE_LATENCY
+		gettimeofday(&lat_start_newest, NULL);
+#endif /* MEASURE_LATENCY */
 		
 
+
 		// Process the batch
+
+#ifdef MEASURE_PROCESSING_MICROBENCHMARK
+		gettimeofday(&micro_start, NULL);
+#endif /* MEASURE_PROCESSING_MICROBENCHMARK */
+
 		printf("Processing %d packets\n\n", num_packets);
 		process_packets_sequential(p, results, num_packets);
+
+#ifdef MEASURE_PROCESSING_MICROBENCHMARK
+		gettimeofday(&micro_stop, NULL);
+		double total_time = (micro_stop.tv_sec - micro_start.tv_sec) * 1000000.0 + (micro_stop.tv_usec - micro_start.tv_usec);
+
+		printf("Performance: %f msec\n", total_time);
+#endif /*MEASURE_PROCESSING_MICROBENCHMARK*/
+
+#ifdef MEASURE_LATENCY
+		gettimeofday(&lat_stop, NULL);
+		max_latency = (lat_stop.tv_sec - lat_start_oldest.tv_sec) * 1000000.0 + (lat_stop.tv_usec - lat_start_oldest.tv_usec);
+		min_latency = (lat_stop.tv_sec - lat_start_newest.tv_sec) * 1000000.0 + (lat_stop.tv_usec - lat_start_newest.tv_usec);
+		printf("Latencies: Max: %f msec   Min: %f msec\n", max_latency, min_latency);
+#endif /* MEASURE_LATENCY */
+
+#ifdef MEASURE_BANDWIDTH
+			packets_processed += num_packets;
+#endif /* MEASURE_BANDWIDTH */
 			
 			
 		// Print results
@@ -256,7 +380,24 @@ int run_sequential(int argc, char **argv, int sockfd)
 		printf("\n\n\n");
 	}
 
+
+#ifdef MEASURE_BANDWIDTH
+	// Calculate how many packets we processed per second
+	gettimeofday(&bw_stop, NULL);
+	double total_time = (bw_stop.tv_sec - bw_start.tv_sec) + (bw_stop.tv_usec - bw_start.tv_usec) / 1000000.0;
+	double pkts_per_sec = double(packets_processed) / total_time;	
+
+	printf("Bandwidth: (%ld/%f) = %f packets per second\n", packets_processed, total_time, pkts_per_sec);
+#endif /* MEASURE_BANDWIDTH */
+
 	return EXIT_SUCCESS;
+}
+
+
+// Catch Ctrl-C
+void sig_handler (int sig)
+{
+	do_run = false; 
 }
 
 
@@ -265,11 +406,13 @@ int run_sequential(int argc, char **argv, int sockfd)
  */
 int main(int argc, char **argv)
 {
+
     if (checkCmdLineFlag(argc, (const char **)argv, "help") ||
         checkCmdLineFlag(argc, (const char **)argv, "?"))
     {
         printf("Usage -device=n (n >= 0 for deviceID)\n");
         printf("      -batch=n  (Sets the number of packets in a batch; n > 0)\n");
+        printf("      -wait=n   (Sets how long we wait (milliseconds) for a complete batch of packets; n > 0)\n");
         printf("      -block=n  (Sets the number of threads in a block; n > 0)\n");
 		printf("      -sequential  (runs router in CPU-only mode w/ sequential code)\n");
 
@@ -280,6 +423,12 @@ int main(int argc, char **argv)
     {
         int size = getCmdLineArgumentInt(argc, (const char **)argv, "batch");
         set_batch_size(size);
+    }
+	
+	if (checkCmdLineFlag(argc, (const char **)argv, "wait"))
+    {
+        int wait = getCmdLineArgumentInt(argc, (const char **)argv, "wait");
+        set_batch_wait(wait);
     }
 	
 	int block_size = DEFAULT_BLOCK_SIZE;
@@ -320,6 +469,10 @@ int main(int argc, char **argv)
     }
 
 	//test(sockfd);
+	
+	// Catch Ctrl-C
+	signal (SIGQUIT, sig_handler);
+	signal (SIGINT, sig_handler);
 
 	// Start the router!
     if (checkCmdLineFlag(argc, (const char **)argv, "sequential"))
