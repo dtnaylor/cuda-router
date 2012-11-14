@@ -111,7 +111,7 @@ int run(int argc, char **argv, int block_size, int sockfd)
 	while(do_run) {
 		
 		/*************************************************************
-		 *				1) EXECUTE THE CUDA KERNEL				 *
+		 *                1) EXECUTE THE CUDA KERNEL                 *
 		 *************************************************************/
 		if (data_ready) { // First execution of loop: data_ready = false
 
@@ -139,7 +139,7 @@ int run(int argc, char **argv, int block_size, int sockfd)
 
 		
 		/*************************************************************
-		 *			2) COPY BACK RESULTS FROM LAST BATCH		   *
+		 *          2) COPY BACK RESULTS FROM LAST BATCH             *
 		 *************************************************************/
 		if (results_ready) { // First and second executions of loop: results_ready = false
 
@@ -173,7 +173,7 @@ int run(int argc, char **argv, int block_size, int sockfd)
 		
 		
 		/*************************************************************
-		 *				  3) COPY NEXT BATCH TO GPU				*
+		 *                 3) COPY NEXT BATCH TO GPU                 *
 		 *************************************************************/
 		// Get next batch of packets and copy them to the GPU
 		// FIXME: We're forcing the results from the current execution to wait
