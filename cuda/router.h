@@ -22,10 +22,13 @@
 // Change this define to determine which processing function is used
 // (e.g., firewall, longest prefix match, etc.)
 #define FIREWALL
+//#define LPM_TRIE
 
 
 __global__ void process_packets(packet *p, int *results, int num_packets, int block_size);
 void setup();
+void process_packets_sequential(packet *p, int *results, int num_packets);
+void setup_sequential();
 
 
 /**

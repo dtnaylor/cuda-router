@@ -32,4 +32,24 @@ void setup()
 	// TODO: Copy firewall rules to GPU so the kernel function can use them
 }
 
+
+
+/**
+ * A CPU-only sequential version of the firewall packet processing function
+ */
+void process_packets_sequential(packet *p, int *resultsl, int num_packets)
+{
+
+}
+
+
+/**
+ * Firewall-specific setup. This will be called a single time by router.cu
+ * before the sequential CPU function runs for the first time
+ */
+void setup_sequential()
+{
+
+}
+
 #endif /* FIREWALL */
