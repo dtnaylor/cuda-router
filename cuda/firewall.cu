@@ -37,9 +37,17 @@ void setup()
 /**
  * A CPU-only sequential version of the firewall packet processing function
  */
-void process_packets_sequential(packet *p, int *resultsl, int num_packets)
+void process_packets_sequential(packet *p, int *results, int num_packets)
 {
-
+	int i;
+	for (i = 0; i < get_batch_size(); i++) {
+		struct ip *ip_hdr = (struct ip*)p[i].buf;
+		if (i < num_packets) {
+			results[i] = ip_hdr->ip_p;
+		} else {
+			results[i] = RESULT_UNSET;
+		}
+	}
 }
 
 

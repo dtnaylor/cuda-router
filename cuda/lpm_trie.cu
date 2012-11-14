@@ -29,7 +29,7 @@ void setup()
 /**
  * A CPU-only sequential version of the firewall packet processing function
  */
-void process_packets_sequential(packet *p, int *resultsl, int num_packets)
+void process_packets_sequential(packet *p, int *results, int num_packets)
 {
 
 }

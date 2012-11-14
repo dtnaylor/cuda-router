@@ -18,6 +18,8 @@ bool do_run = true;
  */
 int run(int argc, char **argv, int block_size, int sockfd)
 {
+	printf("Running CPU/GPU code\n\n");
+
 	unsigned int buf_size = sizeof(packet)*get_batch_size();
 	unsigned int results_size = sizeof(int)*get_batch_size();
 
@@ -209,6 +211,51 @@ void test(int sockfd)
 int run_sequential(int argc, char **argv, int sockfd)
 {
 	printf("Running sequential router code on CPU only\n\n");
+	
+	unsigned int buf_size = sizeof(packet)*get_batch_size();
+	unsigned int results_size = sizeof(int)*get_batch_size();
+
+    // Allocate buffer for packets
+    packet* p = (packet *)malloc(buf_size);
+	check_malloc(p, "p", __LINE__);
+
+	// Allocate array for results
+	int *results = (int*)malloc(results_size);
+	check_malloc(results, "results", __LINE__);
+
+
+	// Run any processing-specific setup code needed
+	// (e.g., this might prepare a data structure for LPM)
+	setup_sequential();
+
+
+	/* The main loop:
+		1) Get a batch of packets
+		2) Process them */
+	int num_packets;
+	while(do_run) {
+		
+		// Get next batch of packets
+		num_packets = 0;
+		while (num_packets == 0) {
+			num_packets = get_packets(sockfd, p);
+		}
+		
+
+		// Process the batch
+		printf("Processing %d packets\n\n", num_packets);
+		process_packets_sequential(p, results, num_packets);
+			
+			
+		// Print results
+		printf("Results:\n");
+		int i;
+		for (i = 0; i < get_batch_size(); i++) {
+			printf("%d, ", results[i]);
+		}
+		printf("\n\n\n");
+	}
+
 	return EXIT_SUCCESS;
 }
 
