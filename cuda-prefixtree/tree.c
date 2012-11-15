@@ -43,7 +43,7 @@
 
 int debug = 1;
 
-#define ILUNARRAYSIZE 512
+#define ILUNARRAYSIZE 32
 struct iplookup_node *ilun_array;
 
 
@@ -504,11 +504,12 @@ int main(int argc, char* argv[])
 	   convert. */
 	in = fopen(ifile, "r");
     i=0;
+    char output[16];
+
 	while (1) {
 		char line[4096];
 		char* rtp;
 		char address_string[16];
-		char output[16];
 		char* pointer;
 		char* strstart;
 		char* strend;
@@ -582,6 +583,7 @@ int main(int argc, char* argv[])
 		}
 	}
     
+    
     int j = i;
     //fill array
     while(i!=ILUNARRAYSIZE) {
@@ -589,14 +591,30 @@ int main(int argc, char* argv[])
         i++;
     }
     
-    DEBUG("go CUDA\n");
+    lpm_lookup((struct lpm_tree*)tree->serialized_tree, &(ilun_array[0]), output);
+    printf("custom lookup %s , port %d\n", output, ilun_array[0].port);
     
-    go_cuda(tree->serialized_tree, tree->serializedtree_size, ilun_array, i);
-    DEBUG("end of CUDA, results (structure size: %d items, %d bytes, struct=%d uint32=%d, uint16=%d):\n", i, i*sizeof(struct iplookup_node),sizeof(struct iplookup_node), sizeof(uint32_t), sizeof(uint16_t));
+    char *p = (char*) tree->serialized_tree;
+    uint32_t s = tree->serializedtree_size;
+    DEBUG("go CUDA\n");
+
+    DEBUG("before gocuda: tree %p treeser %p size %d ilun %p output %p\n", tree, tree->serialized_tree, tree->serializedtree_size, &(ilun_array[0]), output );
+    p = go_cuda(p, s , ilun_array, i);
+    DEBUG("after  gocuda: tree %p treeser %p size %d ilun %p output %p, and retvalue p %p\n", tree, tree->serialized_tree, tree->serializedtree_size, &(ilun_array[0]), output, p );
+    DEBUG("end of CUDA, results:\n");
+    
+    //tree->serialized_tree = p;
+    
     for(i=0; i<ILUNARRAYSIZE;i++) {
         printf("ip:%d to be routed to port %d\n", ilun_array[i].ip, ilun_array[i].port);
     }
 
+    DEBUG("strustrure sizes: structtree=%d pointertree=%d structintnode=%d structdatanode=%d structilun=%d uint64=%d,uint32=%d, uint16=%d):\n", sizeof(struct lpm_tree),sizeof(struct lpm_tree*), sizeof(struct internal_node),sizeof(struct data_node),sizeof(struct iplookup_node), sizeof(uint64_t), sizeof(uint32_t), sizeof(uint16_t));
+
+    DEBUG("before lookup2: tree %p treeser %p size %d ilun %p output %p\n", tree, tree->serialized_tree, tree->serializedtree_size, &(ilun_array[0]), output );
+
+    lpm_lookup((struct lpm_tree*)tree->serialized_tree, &(ilun_array[0]), output);
+    printf("custom lookup2 %s , port %d\n", output, ilun_array[0].port);
     
 	//printf("%d bytes allocated\n", getallocatedbytes());
 	//lpm_destroy(tree);

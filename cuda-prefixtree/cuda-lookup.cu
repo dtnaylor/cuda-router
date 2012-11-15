@@ -88,7 +88,7 @@ __global__ void cuda_lpm_lookup(char* d_serializedtree, struct iplookup_node *il
 {
     //int i = threadIdx.x;
     int i = blockDim.x * blockIdx.x + threadIdx.x;
-    if(i>=ilunarraysize)
+    if(i >= ilunarraysize)
         return;
 
         
@@ -96,7 +96,7 @@ __global__ void cuda_lpm_lookup(char* d_serializedtree, struct iplookup_node *il
     struct iplookup_node *ilun = &(ilun_array[i]);
     struct internal_node* n = (struct internal_node*)((char*)d_serializedtree + ((struct lpm_tree*)d_serializedtree)->h_offset);
     
-    ilun->port = 2;
+    ilun->port = MAX_BITS;
     uint32_t b = MAX_BITS;
 	struct internal_node* next = n;
     
@@ -190,7 +190,7 @@ char* _transfer_to_gpu(char *buffer, uint32_t size) {
         fprintf(stderr, "Failed to copy tree on the GPU (error code %s)!\n", cudaGetErrorString(err));
         exit(-2);
     }
-    DEBUG("Transfer to device successful.\n");
+    DEBUG("Transfer to device (%d bytes from %p) successful.\n", size, buffer);
     
     return d_buffer;
 }
@@ -198,26 +198,29 @@ char* _transfer_to_gpu(char *buffer, uint32_t size) {
 void* _transfer_to_host(char *d_buffer, char *buffer, uint32_t size) {
     cudaError_t err;
     
-    memset(buffer, '\0', size);
+    //memset(buffer, '\0', size);
     
     //copy device buffer to the host buffer  
     err = cudaMemcpy(buffer, d_buffer, size, cudaMemcpyDeviceToHost);
     if (err != cudaSuccess) {
-        fprintf(stderr, "Failed to copy device bufffer to host (error code %s)!\n", cudaGetErrorString(err));
+        fprintf(stderr, "Failed to copy device buffer to host (error code %s)!\n", cudaGetErrorString(err));
         exit(-4);
     }
-    DEBUG("Transfer to host successful.\n");
+    DEBUG("Transfer to host (%d bytes at %p) successful.\n", size, buffer);
     
     return (void*)buffer;
 }
 
-int go_cuda(char *serializedtree, uint32_t treesize, struct iplookup_node *ilun_array, uint32_t ilunarraysize) {
+char* go_cuda(char *serializedtree, uint32_t treesize, struct iplookup_node *ilun_array, uint32_t ilunarraysize) {
     char *d_serializedtree = NULL;
     struct iplookup_node* d_ilun_array = NULL;
     cudaError_t err;
     
     //cudaPrintfInit();
     
+    DEBUG("go_cuda received: treeser %p size %d ilun %p ilunarraysize %d\n", serializedtree, treesize, &(ilun_array[0]), ilunarraysize);
+
+
     if(serializedtree != NULL) // the idea is not to transfer if not needed, in that case take old pointer
         d_serializedtree = _transfer_to_gpu(serializedtree, treesize);
     
@@ -230,7 +233,7 @@ int go_cuda(char *serializedtree, uint32_t treesize, struct iplookup_node *ilun_
     
     cuda_lpm_lookup<<<blocksPerGrid, threadsPerBlock>>>(d_serializedtree, d_ilun_array, ilunarraysize);
     
-    cuda_addonip<<<blocksPerGrid, threadsPerBlock>>>(d_ilun_array, ilunarraysize);
+    //cuda_addonip<<<blocksPerGrid, threadsPerBlock>>>(d_ilun_array, ilunarraysize);
 
     err = cudaGetLastError();
     if (err != cudaSuccess) {
@@ -249,5 +252,7 @@ int go_cuda(char *serializedtree, uint32_t treesize, struct iplookup_node *ilun_
 
     cudaDeviceReset();
     
-    return 1;
+    DEBUG("go_cuda delivers: treeser %p size %d ilun %p ilunarraysize %d\n", serializedtree, treesize, &(ilun_array[0]), ilunarraysize);
+
+    return serializedtree;
 }

@@ -60,12 +60,14 @@ void lpm_debug_print(struct lpm_tree* tree);
 struct lpm_tree {
 	//struct internal_node* head;
 	int32_t h_offset;
+    int32_t h_offset2;
 	char* serialized_tree;
 	uint32_t serializedtree_size;
+    uint32_t serializedtree_size2;
 };
 
 struct internal_node {
-	uint8_t type;
+	uint32_t type;
 
 	//struct internal_node* l;
 	int32_t l_offset;
@@ -74,7 +76,7 @@ struct internal_node {
 };
 
 struct data_node {
-	uint8_t type;
+	uint32_t type;
 
 	//struct internal_node* l;
 	int32_t l_offset;
@@ -82,7 +84,7 @@ struct data_node {
 	int32_t r_offset;
 
 	uint32_t prefix;
-	uint8_t netmask;
+	uint16_t netmask;
     uint16_t port;
 };
 
