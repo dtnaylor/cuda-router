@@ -9,7 +9,8 @@
 #include <unistd.h>
 #include <pthread.h>
 
-#define PORT 9877
+#define SERVER_PORT 9877
+#define CLIENT_PORT 9878
 #define BUF_SIZE 4096
 #define DEFAULT_BATCH_SIZE 1024
 // in milliseconds
@@ -25,6 +26,11 @@ typedef struct _packet {
   int size;
   char buf[BUF_SIZE];
 } packet;
+
+typedef struct _udpc {
+  int fd; // sock descriptor
+  struct sockaddr_in sa; // server address
+} udpc;
 
 int get_packets(int sockfd, packet* p);
 int init_socket();
