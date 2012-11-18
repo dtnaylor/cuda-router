@@ -6,7 +6,22 @@
 
 #define DEFAULT_BLOCK_SIZE 32
 
-bool do_run = true;
+
+int runtime = 0;
+struct timeval start_time, cur_time;
+bool _do_run = true;
+inline bool do_run() {
+	if (_do_run && runtime > 0) {
+		gettimeofday(&cur_time, NULL);
+
+		if (cur_time.tv_sec - start_time.tv_sec > runtime)
+			return false;
+		else
+			return true;
+	}
+	return _do_run;
+}
+
 
 
 /**
@@ -21,7 +36,9 @@ bool do_run = true;
  */
 int run(int argc, char **argv, int block_size, int sockfd)
 {
-	printf("Running CPU/GPU code\n\n");
+	PRINT(V_INFO, "Running CPU/GPU code\n\n");
+
+	gettimeofday(&start_time, NULL);
 
 	unsigned int buf_size = sizeof(packet)*get_batch_size();
 	unsigned int results_size = sizeof(int)*get_batch_size();
@@ -74,6 +91,9 @@ int run(int argc, char **argv, int block_size, int sockfd)
 
 	cudaEvent_t stop;
 	check_error(cudaEventCreate(&stop), "Create stop event", __LINE__);
+
+	double avg_micro = 0;
+	int micro_nIters = 0;
 #endif /* MEASURE_PROCESSING_MICROBENCHMARK */
 
 #ifdef MEASURE_BANDWIDTH
@@ -83,7 +103,8 @@ int run(int argc, char **argv, int block_size, int sockfd)
 #endif /* MEASURE_BANDWIDTH */
 
 #ifdef MEASURE_LATENCY
-	double max_latency, min_latency;
+	double max_latency, min_latency, avg_max_latency = 0, avg_min_latency = 0;
+	int lat_nIters = 0;
 	struct timeval lat_start_oldest1, lat_start_oldest2, lat_start_newest1, lat_start_newest2, lat_stop;
 	struct timeval *lat_start_oldest_current = &lat_start_oldest1;
 	struct timeval *lat_start_oldest_next = &lat_start_oldest2;
@@ -108,7 +129,7 @@ int run(int argc, char **argv, int block_size, int sockfd)
 		2) While it's executing, copy the results from the last execution back to the host
 		3) While it's executing, copy the packets for the next execution to the GPU */
 	
-	while(do_run) {
+	while(do_run()) {
 		
 		/*************************************************************
 		 *                1) EXECUTE THE CUDA KERNEL                 *
@@ -121,7 +142,7 @@ int run(int argc, char **argv, int block_size, int sockfd)
 #endif /* MEASURE_PROCESSING_MICROBENCHMARK */
 
 			// Execute the kernel
-			printf("vvvvv   Begin processing %d packets   vvvvv\n\n", num_packets);
+			PRINT(V_DEBUG, "vvvvv   Begin processing %d packets   vvvvv\n\n", num_packets);
 			process_packets<<< blocks_in_grid, threads_in_block >>>(d_p_current, d_results_current, num_packets, block_size);
 
 #ifdef MEASURE_PROCESSING_MICROBENCHMARK
@@ -157,16 +178,20 @@ int run(int argc, char **argv, int block_size, int sockfd)
 			gettimeofday(&lat_stop, NULL);
 			max_latency = (lat_stop.tv_sec - lat_start_oldest_current->tv_sec) * 1000000.0 + (lat_stop.tv_usec - lat_start_oldest_current->tv_usec);
 			min_latency = (lat_stop.tv_sec - lat_start_newest_current->tv_sec) * 1000000.0 + (lat_stop.tv_usec - lat_start_newest_current->tv_usec);
-			printf("Latencies from last batch: Max: %f msec   Min: %f msec\n", max_latency, min_latency);
+			PRINT(V_DEBUG_TIMING, "Latencies from last batch: Max: %f msec   Min: %f msec\n", max_latency, min_latency);
+
+			lat_nIters++;
+			avg_min_latency += min_latency; // keep a cummulative total and divide later
+			avg_max_latency += max_latency;
 #endif /* MEASURE_LATENCY */
 		
 			// Print results
-			printf("Results from last batch:\n");
+			PRINT(V_DEBUG, "Results from last batch:\n");
 			int i;
 			for (i = 0; i < get_batch_size(); i++) {
-				printf("%d, ", h_results_previous[i]);
+				PRINT(V_DEBUG, "%d, ", h_results_previous[i]);
 			}
-			printf("\n\n");
+			PRINT(V_DEBUG, "\n\n");
 		}
 
 		
@@ -184,7 +209,7 @@ int run(int argc, char **argv, int block_size, int sockfd)
 		gettimeofday(lat_start_oldest_next, NULL);
 #endif /* MEASURE_LATENCY */
 		num_packets = 0;
-		while (num_packets == 0 && do_run) {
+		while (num_packets == 0 && do_run()) {
 			num_packets = get_packets(sockfd, h_p_next);
 		}
 #ifdef MEASURE_LATENCY
@@ -203,8 +228,11 @@ int run(int argc, char **argv, int block_size, int sockfd)
 			float msecTotal = 0.0f;
 			check_error(cudaEventElapsedTime(&msecTotal, start, stop), "Getting time elapsed b/w events", __LINE__);
 
+			micro_nIters++;
+			avg_micro += msecTotal;
+
 			// Compute and print the performance
-			printf(
+			PRINT(V_DEBUG_TIMING,
 				"Performance= Time= %.3f msec, WorkgroupSize= %u threads/block\n",
 				msecTotal,
 				threads_in_block);
@@ -214,7 +242,7 @@ int run(int argc, char **argv, int block_size, int sockfd)
 #endif /* MEASURE_PROCESSING_MICROBENCHMARK */
 
 
-			printf("^^^^^   Done processing batch   ^^^^^\n\n\n");
+			PRINT(V_DEBUG, "^^^^^   Done processing batch   ^^^^^\n\n\n");
 
 			results_ready = true;
 		}
@@ -242,8 +270,19 @@ int run(int argc, char **argv, int block_size, int sockfd)
 	double total_time = (bw_stop.tv_sec - bw_start.tv_sec) + (bw_stop.tv_usec - bw_start.tv_usec) / 1000000.0;
 	double pkts_per_sec = double(packets_processed) / total_time;	
 
-	printf("Bandwidth: (%ld/%f) = %f packets per second\n", packets_processed, total_time, pkts_per_sec);
+	PRINT(V_INFO, "Bandwidth: %f packets per second  (64B pkts ==> %f Gbps)\n", pkts_per_sec, pkts_per_sec * 64.0 / 1000000.0);
 #endif /* MEASURE_BANDWIDTH */
+
+#ifdef MEASURE_PROCESSING_MICROBENCHMARK
+	avg_micro /= micro_nIters;
+	PRINT(V_INFO, "Average processing time: %f msec\n", avg_micro);
+#endif /* MEASURE_PROCESSING_MICROBENCHMARK */
+
+#ifdef MEASURE_LATENCY
+	avg_min_latency /= lat_nIters;
+	avg_max_latency /= lat_nIters;
+	PRINT(V_INFO, "Average latency:  Max: %f msec,   Min: %f msec\n", avg_max_latency, avg_min_latency);
+#endif /* MEASURE_LATENCY */
 
 
 
@@ -265,21 +304,21 @@ int run(int argc, char **argv, int block_size, int sockfd)
 
 void test(int sockfd) 
 {
-	printf("Batch Size: %d\n", get_batch_size());
+	PRINT(V_INFO, "Batch Size: %d\n", get_batch_size());
 	
 	// Initialize a buffer for storing up to batch_size packets
 	packet* p = (packet *)malloc(sizeof(packet)*get_batch_size());
 	
 	while(1) {
 	  int num_packets = get_packets(sockfd, p);
-	  printf("i = %d\n", num_packets);
+	  PRINT(V_DEBUG, "i = %d\n", num_packets);
 
 	  if (num_packets > 0) {
 	  	struct ip *ip_hdr = (struct ip*)p->buf;
 		struct udphdr *udp_hdr = (struct udphdr*)&(p->buf[sizeof(struct ip)]);
-		printf("Dest: %s (%u)\n", inet_ntoa(ip_hdr->ip_dst), ntohs(udp_hdr->uh_dport));
-		printf("Source: %s (%u)\n", inet_ntoa(ip_hdr->ip_src), ntohs(udp_hdr->uh_sport));
-		printf("Next proto: %u\n", ip_hdr->ip_p);
+		PRINT(V_DEBUG, "Dest: %s (%u)\n", inet_ntoa(ip_hdr->ip_dst), ntohs(udp_hdr->uh_dport));
+		PRINT(V_DEBUG, "Source: %s (%u)\n", inet_ntoa(ip_hdr->ip_src), ntohs(udp_hdr->uh_sport));
+		PRINT(V_DEBUG, "Next proto: %u\n", ip_hdr->ip_p);
 	  }
 	}
 }
@@ -287,7 +326,9 @@ void test(int sockfd)
 
 int run_sequential(int argc, char **argv, int sockfd)
 {
-	printf("Running sequential router code on CPU only\n\n");
+	PRINT(V_INFO, "Running sequential router code on CPU only\n\n");
+
+	gettimeofday(&start_time, NULL);
 	
 	unsigned int buf_size = sizeof(packet)*get_batch_size();
 	unsigned int results_size = sizeof(int)*get_batch_size();
@@ -308,6 +349,8 @@ int run_sequential(int argc, char **argv, int sockfd)
 
 #ifdef MEASURE_PROCESSING_MICROBENCHMARK
 	struct timeval micro_start, micro_stop;
+	double avg_micro = 0;
+	int micro_nIters = 0;
 #endif /* MEASURE_PROCESSING_MICROBENCHMARK */
 
 #ifdef MEASURE_BANDWIDTH
@@ -318,7 +361,8 @@ int run_sequential(int argc, char **argv, int sockfd)
 
 #ifdef MEASURE_LATENCY
 	struct timeval lat_start_oldest, lat_start_newest, lat_stop;
-	double max_latency, min_latency;
+	double max_latency, min_latency, avg_max_latency = 0, avg_min_latency = 0;
+	int lat_nIters = 0;
 #endif /* MEASURE_LATENCY */
 
 
@@ -326,7 +370,7 @@ int run_sequential(int argc, char **argv, int sockfd)
 		1) Get a batch of packets
 		2) Process them */
 	int num_packets;
-	while(do_run) {
+	while(do_run()) {
 		
 		// Get next batch of packets
 
@@ -334,7 +378,7 @@ int run_sequential(int argc, char **argv, int sockfd)
 		gettimeofday(&lat_start_oldest, NULL);
 #endif /* MEASURE_LATENCY */
 		num_packets = 0;
-		while (num_packets == 0) {
+		while (num_packets == 0 && do_run()) {
 			num_packets = get_packets(sockfd, p);
 		}
 #ifdef MEASURE_LATENCY
@@ -349,21 +393,28 @@ int run_sequential(int argc, char **argv, int sockfd)
 		gettimeofday(&micro_start, NULL);
 #endif /* MEASURE_PROCESSING_MICROBENCHMARK */
 
-		printf("Processing %d packets\n\n", num_packets);
+		PRINT(V_DEBUG, "Processing %d packets\n\n", num_packets);
 		process_packets_sequential(p, results, num_packets);
 
 #ifdef MEASURE_PROCESSING_MICROBENCHMARK
 		gettimeofday(&micro_stop, NULL);
 		double total_time = (micro_stop.tv_sec - micro_start.tv_sec) * 1000000.0 + (micro_stop.tv_usec - micro_start.tv_usec);
 
-		printf("Performance: %f msec\n", total_time);
+		micro_nIters++;
+		avg_micro += total_time;
+
+		PRINT(V_DEBUG_TIMING, "Performance: %f msec\n", total_time);
 #endif /*MEASURE_PROCESSING_MICROBENCHMARK*/
 
 #ifdef MEASURE_LATENCY
 		gettimeofday(&lat_stop, NULL);
 		max_latency = (lat_stop.tv_sec - lat_start_oldest.tv_sec) * 1000000.0 + (lat_stop.tv_usec - lat_start_oldest.tv_usec);
 		min_latency = (lat_stop.tv_sec - lat_start_newest.tv_sec) * 1000000.0 + (lat_stop.tv_usec - lat_start_newest.tv_usec);
-		printf("Latencies: Max: %f msec   Min: %f msec\n", max_latency, min_latency);
+		PRINT(V_DEBUG_TIMING, "Latencies: Max: %f msec   Min: %f msec\n", max_latency, min_latency);
+
+		lat_nIters++;
+		avg_max_latency += max_latency; // store cummulative latency; divide later
+		avg_min_latency += min_latency;
 #endif /* MEASURE_LATENCY */
 
 #ifdef MEASURE_BANDWIDTH
@@ -372,12 +423,12 @@ int run_sequential(int argc, char **argv, int sockfd)
 			
 			
 		// Print results
-		printf("Results:\n");
+		PRINT(V_DEBUG, "Results:\n");
 		int i;
 		for (i = 0; i < get_batch_size(); i++) {
-			printf("%d, ", results[i]);
+			PRINT(V_DEBUG, "%d, ", results[i]);
 		}
-		printf("\n\n\n");
+		PRINT(V_DEBUG, "\n\n\n");
 	}
 
 
@@ -387,8 +438,19 @@ int run_sequential(int argc, char **argv, int sockfd)
 	double total_time = (bw_stop.tv_sec - bw_start.tv_sec) + (bw_stop.tv_usec - bw_start.tv_usec) / 1000000.0;
 	double pkts_per_sec = double(packets_processed) / total_time;	
 
-	printf("Bandwidth: (%ld/%f) = %f packets per second\n", packets_processed, total_time, pkts_per_sec);
+	PRINT(V_INFO, "Bandwidth: %f packets per second   (64B pkts ==> %f Gbps)\n", pkts_per_sec, pkts_per_sec * 64.0 / 1000000.0);
 #endif /* MEASURE_BANDWIDTH */
+
+#ifdef MEASURE_PROCESSING_MICROBENCHMARK
+	avg_micro /= micro_nIters;
+	PRINT(V_INFO, "Average processing time: %f msec\n", avg_micro);
+#endif /* MEASURE_PROCESSING_MICROBENCHMARK */
+
+#ifdef MEASURE_LATENCY
+	avg_max_latency /= lat_nIters;
+	avg_min_latency /= lat_nIters;
+	PRINT(V_INFO, "Average latency: Max: %f msec,    Min: %f\n", avg_max_latency, avg_min_latency);
+#endif /* MEASURE_LATENCY */
 
 	return EXIT_SUCCESS;
 }
@@ -397,7 +459,7 @@ int run_sequential(int argc, char **argv, int sockfd)
 // Catch Ctrl-C
 void sig_handler (int sig)
 {
-	do_run = false; 
+	_do_run = false; 
 }
 
 
@@ -415,6 +477,7 @@ int main(int argc, char **argv)
 		printf("	  -wait=n   (Sets how long we wait (milliseconds) for a complete batch of packets; n > 0)\n");
 		printf("	  -block=n  (Sets the number of threads in a block; n > 0)\n");
 		printf("	  -sequential  (runs router in CPU-only mode w/ sequential code)\n");
+		printf("      -runtime=n  (Sets a runtime in runtime; n > 0)\n");
 
 		exit(EXIT_SUCCESS);
 	}
@@ -439,6 +502,14 @@ int main(int argc, char **argv)
 			block_size = n;
 		}
 	}
+	
+	if (checkCmdLineFlag(argc, (const char **)argv, "runtime"))
+	{
+		int n = getCmdLineArgumentInt(argc, (const char **)argv, "runtime");
+		if (n > 0) {
+			runtime = n;
+		}
+	}
 
 	// By default, we use device 0, otherwise we override the device ID based on what is provided at the command line
 	int devID = 0;
@@ -459,7 +530,7 @@ int main(int argc, char **argv)
 		exit(EXIT_SUCCESS);
 	}
 
-	printf("GPU Device %d: \"%s\" with compute capability %d.%d\n\n", devID, deviceProp.name, deviceProp.major, deviceProp.minor);
+	PRINT(V_INFO, "GPU Device %d: \"%s\" with compute capability %d.%d\n\n", devID, deviceProp.name, deviceProp.major, deviceProp.minor);
 	
 	
 	// Set up the socket for receiving packets from click

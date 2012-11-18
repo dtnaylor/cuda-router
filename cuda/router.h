@@ -6,6 +6,7 @@
 #include <assert.h>
 #include <netinet/ip.h>
 #include <netinet/udp.h>
+#include <netinet/tcp.h>
 
 // CUDA runtime
 #include <cuda_runtime.h>
@@ -17,6 +18,14 @@
 #include <packet-collector.hh>
 
 #define SWAP(a,b,type) { type tmp=(a); (a)=(b); (b)=tmp; }
+
+
+#define V_ERROR 0
+#define V_INFO 1
+#define V_DEBUG_TIMING 2
+#define V_DEBUG 3
+#define VERBOSITY V_DEBUG
+#define PRINT(verbosity, ...) do { if (verbosity <= VERBOSITY) fprintf(stdout, __VA_ARGS__); } while (0)
 
 
 // Change this define to determine which processing function is used

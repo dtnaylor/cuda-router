@@ -115,7 +115,7 @@ endif
 
 
 # Common includes and paths for CUDA
-INCLUDES      := -I$(CUDA_INC_PATH) -I. -I../common/inc -I../packet-collector
+INCLUDES      := -I$(CUDA_INC_PATH) -I. -I../common/inc -I../packet-collector -I/opt/local/include/glib-2.0
 
 CFLAGS := -DCUDA_CODE
 CXXFLAGS := -DCUDA_CODE
@@ -142,4 +142,4 @@ run: build
 	./router
 
 clean:
-	rm -f router router.o firewall.o
+	rm -f router router.o firewall.o lpm_trie.o
