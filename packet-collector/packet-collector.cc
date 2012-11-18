@@ -3,26 +3,46 @@
 int batch_size = DEFAULT_BATCH_SIZE;
 int batch_wait = DEFAULT_BATCH_WAIT;
 
-int init_socket() {
+int init_server_socket() {
 	int sockfd;
 	struct sockaddr_in servaddr;
 
 	if ((sockfd = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP)) < 0) {
-	perror("socket");
-	return -1;
+	  perror("socket");
+	  return -1;
 	}
 
 	memset(&servaddr, 0, sizeof(servaddr));
 	servaddr.sin_family      = AF_INET;
 	servaddr.sin_addr.s_addr = htonl(INADDR_ANY);
-	servaddr.sin_port        = htons(PORT);
+	servaddr.sin_port        = htons(SERVER_PORT);
 
 	if (bind(sockfd, (struct sockaddr *) &servaddr, sizeof(servaddr)) < 0) {
-	perror("bind");
-	return -1;
+	  perror("bind");
+	  return -1;
 	}
 
 	return sockfd;
+}
+
+udpc init_client_socket() {
+  udpc client;
+  
+  if ((client.fd=socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP)) < 0) {
+    perror("socket");
+    return client;
+  }
+
+  memset(&client.sa, 0, sizeof(client.sa));
+  client.sa.sin_family = AF_INET;
+  client.sa.sin_port = htons(CLIENT_PORT);
+  if (inet_aton("127.0.0.1", &client.sa.sin_addr)==0) {
+    perror("inet_aton");
+    client.fd = -1;
+    return client;
+  }
+
+  return client;
 }
 
 int set_batch_size(int s) {
@@ -79,18 +99,30 @@ int get_packets(int sockfd, packet* p) {
 	return i;
 }
 
+int send_packets(udpc client, packet* p, int num_packets) {
+  for(int i = 0; i < num_packets; i++) {
+    sendto(client.fd, p[i].buf, p[i].size, 0, (struct sockaddr*)&client.sa, sizeof(client.sa));
+  }
+  return 0;
+}
+
 #ifndef CUDA_CODE
 int main() {	
-	int sockfd = init_socket();
-	if(sockfd == -1) {
+	int server_sockfd = init_server_socket();
+	if(server_sockfd == -1) {
 		return -1;
+	}
+	
+        udpc client= init_client_socket();
+	if(client.fd == -1) {
+	  return -1;
 	}
 
 	packet* p = (packet *)malloc(sizeof(packet)*batch_size);
-	
+       
 	while(1) {
-		int num_packets = get_packets(sockfd, p);
-		printf("i = %d\n", num_packets);
+	  int num_packets = get_packets(server_sockfd, p);
+	  send_packets(client, p, num_packets);
 	}
 }
 #endif
