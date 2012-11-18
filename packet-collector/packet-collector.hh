@@ -33,7 +33,9 @@ typedef struct _udpc {
 } udpc;
 
 int get_packets(int sockfd, packet* p);
-int init_socket();
+int send_packets(udpc client, packet* p, int num_packets);
+int init_server_socket();
+udpc init_client_socket();
 int set_batch_size(int s);
 int get_batch_size();
 int set_batch_wait(int s);

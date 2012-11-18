@@ -34,7 +34,7 @@ inline bool do_run() {
  * we're copying over the next batch so that it can begin processing them as soon
  * as it finishes processing the first batch.
  */
-int run(int argc, char **argv, int block_size, int sockfd)
+int run(int argc, char **argv, int block_size, int server_sockfd, udpc client)
 {
 	PRINT(V_INFO, "Running CPU/GPU code\n\n");
 
@@ -114,7 +114,8 @@ int run(int argc, char **argv, int block_size, int sockfd)
 
 	bool data_ready = false;
 	bool results_ready = false;
-	int num_packets;
+	int num_packets_current;
+	int num_packets_next;
 	packet *h_p_current = h_p1;
 	packet *h_p_next = h_p2;
 	packet *d_p_current = d_p1;
@@ -142,8 +143,8 @@ int run(int argc, char **argv, int block_size, int sockfd)
 #endif /* MEASURE_PROCESSING_MICROBENCHMARK */
 
 			// Execute the kernel
-			PRINT(V_DEBUG, "vvvvv   Begin processing %d packets   vvvvv\n\n", num_packets);
-			process_packets<<< blocks_in_grid, threads_in_block >>>(d_p_current, d_results_current, num_packets, block_size);
+			PRINT(V_DEBUG, "vvvvv   Begin processing %d packets   vvvvv\n\n", num_packets_current);
+			process_packets<<< blocks_in_grid, threads_in_block >>>(d_p_current, d_results_current, num_packets_current, block_size);
 
 #ifdef MEASURE_PROCESSING_MICROBENCHMARK
 			// Record the stop event
@@ -152,7 +153,7 @@ int run(int argc, char **argv, int block_size, int sockfd)
 
 
 #ifdef MEASURE_BANDWIDTH
-			packets_processed += num_packets;
+			packets_processed += num_packets_current;
 #endif /* MEASURE_BANDWIDTH */
 
 		}
@@ -174,6 +175,9 @@ int run(int argc, char **argv, int block_size, int sockfd)
 			// Copy the last set of results back from the GPU
 			check_error(cudaMemcpy(h_results_previous, d_results_previous, results_size, cudaMemcpyDeviceToHost), "cudaMemcpy (h_results, d_results)", __LINE__);
 
+			// Send packets (right now, h_p_next still holds the *previous* batch)
+			send_packets(client, h_p_next, num_packets_next);
+
 #ifdef MEASURE_LATENCY
 			gettimeofday(&lat_stop, NULL);
 			max_latency = (lat_stop.tv_sec - lat_start_oldest_current->tv_sec) * 1000000.0 + (lat_stop.tv_usec - lat_start_oldest_current->tv_usec);
@@ -192,6 +196,7 @@ int run(int argc, char **argv, int block_size, int sockfd)
 				PRINT(V_DEBUG, "%d, ", h_results_previous[i]);
 			}
 			PRINT(V_DEBUG, "\n\n");
+
 		}
 
 		
@@ -208,9 +213,9 @@ int run(int argc, char **argv, int block_size, int sockfd)
 		// (not perfect if the first packet doesn't arrive immediately)
 		gettimeofday(lat_start_oldest_next, NULL);
 #endif /* MEASURE_LATENCY */
-		num_packets = 0;
-		while (num_packets == 0 && do_run()) {
-			num_packets = get_packets(sockfd, h_p_next);
+		num_packets_next = 0;
+		while (num_packets_next == 0 && do_run()) {
+			num_packets_next = get_packets(server_sockfd, h_p_next);
 		}
 #ifdef MEASURE_LATENCY
 		gettimeofday(lat_start_newest_next, NULL);
@@ -252,6 +257,7 @@ int run(int argc, char **argv, int block_size, int sockfd)
 
 
 		// Get ready for the next loop iteration
+		SWAP(num_packets_current, num_packets_next, int);
 		SWAP(h_p_current, h_p_next, packet*);
 		SWAP(d_p_current, d_p_next, packet*);
 		SWAP(h_results_current, h_results_previous, int*);
@@ -302,7 +308,7 @@ int run(int argc, char **argv, int block_size, int sockfd)
 	return EXIT_SUCCESS;
 }
 
-void test(int sockfd) 
+void test(int server_sockfd) 
 {
 	PRINT(V_INFO, "Batch Size: %d\n", get_batch_size());
 	
@@ -310,7 +316,7 @@ void test(int sockfd)
 	packet* p = (packet *)malloc(sizeof(packet)*get_batch_size());
 	
 	while(1) {
-	  int num_packets = get_packets(sockfd, p);
+	  int num_packets = get_packets(server_sockfd, p);
 	  PRINT(V_DEBUG, "i = %d\n", num_packets);
 
 	  if (num_packets > 0) {
@@ -324,7 +330,7 @@ void test(int sockfd)
 }
 
 
-int run_sequential(int argc, char **argv, int sockfd)
+int run_sequential(int argc, char **argv, int server_sockfd, udpc client)
 {
 	PRINT(V_INFO, "Running sequential router code on CPU only\n\n");
 
@@ -379,7 +385,7 @@ int run_sequential(int argc, char **argv, int sockfd)
 #endif /* MEASURE_LATENCY */
 		num_packets = 0;
 		while (num_packets == 0 && do_run()) {
-			num_packets = get_packets(sockfd, p);
+			num_packets = get_packets(server_sockfd, p);
 		}
 #ifdef MEASURE_LATENCY
 		gettimeofday(&lat_start_newest, NULL);
@@ -405,6 +411,9 @@ int run_sequential(int argc, char **argv, int sockfd)
 
 		PRINT(V_DEBUG_TIMING, "Performance: %f msec\n", total_time);
 #endif /*MEASURE_PROCESSING_MICROBENCHMARK*/
+
+		// Return the batch of packets to click for forwarding
+		send_packets(client, p, num_packets);
 
 #ifdef MEASURE_LATENCY
 		gettimeofday(&lat_stop, NULL);
@@ -534,12 +543,18 @@ int main(int argc, char **argv)
 	
 	
 	// Set up the socket for receiving packets from click
-	int sockfd = init_socket();
-	if(sockfd == -1) {
+	int server_sockfd = init_server_socket();
+	if(server_sockfd == -1) {
 	  return -1;
 	}
 
-	//test(sockfd);
+	// Set up the socket for returning packets to click
+	udpc client = init_client_socket();
+	if(client.fd == -1) {
+	  return -1;
+	}
+
+	//test(server_sockfd);
 	
 	// Catch Ctrl-C
 	signal (SIGQUIT, sig_handler);
@@ -548,10 +563,10 @@ int main(int argc, char **argv)
 	// Start the router!
 	if (checkCmdLineFlag(argc, (const char **)argv, "sequential"))
 	{
-		return run_sequential(argc, argv, sockfd);
+		return run_sequential(argc, argv, server_sockfd, client);
 	}
 	else
 	{
-		return run(argc, argv, block_size, sockfd);
+		return run(argc, argv, block_size, server_sockfd, client);
 	}
 }
