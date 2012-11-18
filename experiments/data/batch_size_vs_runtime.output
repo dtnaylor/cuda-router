@@ -1,0 +1,120 @@
+
+
+GPU BATCH 128
+GPU Device 0: "GeForce GT 650M" with compute capability 3.0
+
+Running CPU/GPU code
+
+Bandwidth: 46152.266054 packets per second  (64B pkts ==> 2.953745 Gbps)
+Average processing time: 0.587879 msec
+Average latency: Max: 2773.169879 msec, Min: 1742.854167 msec
+
+
+GPU BATCH 256
+GPU Device 0: "GeForce GT 650M" with compute capability 3.0
+
+Running CPU/GPU code
+
+Bandwidth: 62521.343729 packets per second  (64B pkts ==> 4.001366 Gbps)
+Average processing time: 0.591817 msec
+Average latency: Max: 4094.140908 msec, Min: 2891.816051 msec
+
+
+GPU BATCH 512
+GPU Device 0: "GeForce GT 650M" with compute capability 3.0
+
+Running CPU/GPU code
+
+Bandwidth: 75612.747444 packets per second  (64B pkts ==> 4.839216 Gbps)
+Average processing time: 0.612156 msec
+Average latency: Max: 6770.379023 msec, Min: 5053.560543 msec
+
+
+GPU BATCH 1024
+GPU Device 0: "GeForce GT 650M" with compute capability 3.0
+
+Running CPU/GPU code
+
+Bandwidth: 82199.696048 packets per second  (64B pkts ==> 5.260781 Gbps)
+Average processing time: 0.873744 msec
+Average latency: Max: 12455.969795 msec, Min: 9630.794201 msec
+
+
+GPU BATCH 2048
+GPU Device 0: "GeForce GT 650M" with compute capability 3.0
+
+Running CPU/GPU code
+
+Bandwidth: 86282.284067 packets per second  (64B pkts ==> 5.522066 Gbps)
+Average processing time: 1.475310 msec
+Average latency: Max: 23734.139678 msec, Min: 18714.729854 msec
+
+
+GPU BATCH 4096
+GPU Device 0: "GeForce GT 650M" with compute capability 3.0
+
+Running CPU/GPU code
+
+Bandwidth: 80358.549971 packets per second  (64B pkts ==> 5.142947 Gbps)
+Average processing time: 2.631891 msec
+Average latency: Max: 50983.600660 msec, Min: 36725.346535 msec
+
+
+CPU BATCH 128
+GPU Device 0: "GeForce GT 650M" with compute capability 3.0
+
+Running sequential router code on CPU only
+
+Bandwidth: 63795.864810 packets per second  (64B pkts ==> 4.082935 Gbps)
+Average processing time: 43.945752 msec
+Average latency: Max: 2005.916586 msec, Min: 752.698425
+
+
+CPU BATCH 256
+GPU Device 0: "GeForce GT 650M" with compute capability 3.0
+
+Running sequential router code on CPU only
+
+Bandwidth: 90770.438467 packets per second  (64B pkts ==> 5.809308 Gbps)
+Average processing time: 87.181951 msec
+Average latency: Max: 2819.501094 msec, Min: 1515.741933
+
+
+CPU BATCH 512
+GPU Device 0: "GeForce GT 650M" with compute capability 3.0
+
+Running sequential router code on CPU only
+
+Bandwidth: 112420.614900 packets per second  (64B pkts ==> 7.194919 Gbps)
+Average processing time: 169.676034 msec
+Average latency: Max: 4552.889951 msec, Min: 2972.465794
+
+
+CPU BATCH 1024
+GPU Device 0: "GeForce GT 650M" with compute capability 3.0
+
+Running sequential router code on CPU only
+
+Bandwidth: 122756.416829 packets per second  (64B pkts ==> 7.856411 Gbps)
+Average processing time: 332.370690 msec
+Average latency: Max: 8339.050916 msec, Min: 5856.385506
+
+
+CPU BATCH 2048
+GPU Device 0: "GeForce GT 650M" with compute capability 3.0
+
+Running sequential router code on CPU only
+
+Bandwidth: 125087.242407 packets per second  (64B pkts ==> 8.005584 Gbps)
+Average processing time: 668.924947 msec
+Average latency: Max: 16367.332452 msec, Min: 11805.959831
+
+
+CPU BATCH 4096
+GPU Device 0: "GeForce GT 650M" with compute capability 3.0
+
+Running sequential router code on CPU only
+
+Bandwidth: 108694.970843 packets per second  (64B pkts ==> 6.956478 Gbps)
+Average processing time: 1374.260024 msec
+Average latency: Max: 37673.222357 msec, Min: 23756.102066

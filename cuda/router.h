@@ -24,7 +24,7 @@
 #define V_INFO 1
 #define V_DEBUG_TIMING 2
 #define V_DEBUG 3
-#define VERBOSITY V_DEBUG
+#define VERBOSITY V_INFO
 #define PRINT(verbosity, ...) do { if (verbosity <= VERBOSITY) fprintf(stdout, __VA_ARGS__); } while (0)
 
 
@@ -38,6 +38,11 @@ __global__ void process_packets(packet *p, int *results, int num_packets, int bl
 void setup();
 void process_packets_sequential(packet *p, int *results, int num_packets);
 void setup_sequential();
+
+#ifdef FIREWALL
+int set_num_rules(int s);
+int get_num_rules();
+#endif /* FIREWALL */
 
 
 /**

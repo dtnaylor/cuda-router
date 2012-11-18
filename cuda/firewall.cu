@@ -11,6 +11,18 @@ typedef struct _rule {
   int8_t action;
 } rule;
 
+int num_rules = 100;
+
+int set_num_rules(int s) {
+	if (s > 0) {
+		num_rules = s;
+	}
+	return num_rules;
+}
+
+int get_num_rules() {
+	return num_rules;
+}
 
 /* Global vars for firewall */
 //unsigned long *h_rule_hashes;
@@ -171,7 +183,7 @@ void generate_rules(int num_rules, rule* rules)
  */
 void setup()
 {
-	h_num_rules = 100;
+	h_num_rules = num_rules;
 	int rules_size = h_num_rules * sizeof(rule);
 	h_rules = (rule*)malloc(rules_size);
 	check_error(cudaMalloc((void **) &d_rules, rules_size), "cudaMalloc d_rules", __LINE__);
@@ -239,7 +251,7 @@ void process_packets_sequential(packet *p, int *results, int num_packets)
  */
 void setup_sequential()
 {
-	h_num_rules = 100;
+	h_num_rules = num_rules;
 	int rules_size = h_num_rules * sizeof(rule);
 	h_rules = (rule*)malloc(rules_size);
 

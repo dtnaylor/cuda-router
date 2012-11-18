@@ -175,7 +175,7 @@ int run(int argc, char **argv, int block_size, int server_sockfd, udpc client)
 			// Copy the last set of results back from the GPU
 			check_error(cudaMemcpy(h_results_previous, d_results_previous, results_size, cudaMemcpyDeviceToHost), "cudaMemcpy (h_results, d_results)", __LINE__);
 
-			// Send packets (right now, h_p_next still holds the *previous* batch)
+			// Forward packets (right now, h_p_next still holds the *previous* batch)
 			send_packets(client, h_p_next, num_packets_next);
 
 #ifdef MEASURE_LATENCY
@@ -287,7 +287,7 @@ int run(int argc, char **argv, int block_size, int server_sockfd, udpc client)
 #ifdef MEASURE_LATENCY
 	avg_min_latency /= lat_nIters;
 	avg_max_latency /= lat_nIters;
-	PRINT(V_INFO, "Average latency:  Max: %f msec,   Min: %f msec\n", avg_max_latency, avg_min_latency);
+	PRINT(V_INFO, "Average latency: Max: %f msec, Min: %f msec\n", avg_max_latency, avg_min_latency);
 #endif /* MEASURE_LATENCY */
 
 
@@ -361,8 +361,7 @@ int run_sequential(int argc, char **argv, int server_sockfd, udpc client)
 
 #ifdef MEASURE_BANDWIDTH
 	long packets_processed = 0;
-	struct timeval bw_start, bw_stop;
-	gettimeofday(&bw_start, NULL);
+	struct timeval bw_start, bw_stop; gettimeofday(&bw_start, NULL);
 #endif /* MEASURE_BANDWIDTH */
 
 #ifdef MEASURE_LATENCY
@@ -447,7 +446,7 @@ int run_sequential(int argc, char **argv, int server_sockfd, udpc client)
 	double total_time = (bw_stop.tv_sec - bw_start.tv_sec) + (bw_stop.tv_usec - bw_start.tv_usec) / 1000000.0;
 	double pkts_per_sec = double(packets_processed) / total_time;	
 
-	PRINT(V_INFO, "Bandwidth: %f packets per second   (64B pkts ==> %f Gbps)\n", pkts_per_sec, pkts_per_sec * 64.0 / 1000000.0);
+	PRINT(V_INFO, "Bandwidth: %f packets per second  (64B pkts ==> %f Gbps)\n", pkts_per_sec, pkts_per_sec * 64.0 / 1000000.0);
 #endif /* MEASURE_BANDWIDTH */
 
 #ifdef MEASURE_PROCESSING_MICROBENCHMARK
@@ -458,7 +457,7 @@ int run_sequential(int argc, char **argv, int server_sockfd, udpc client)
 #ifdef MEASURE_LATENCY
 	avg_max_latency /= lat_nIters;
 	avg_min_latency /= lat_nIters;
-	PRINT(V_INFO, "Average latency: Max: %f msec,    Min: %f\n", avg_max_latency, avg_min_latency);
+	PRINT(V_INFO, "Average latency: Max: %f msec, Min: %f\n", avg_max_latency, avg_min_latency);
 #endif /* MEASURE_LATENCY */
 
 	return EXIT_SUCCESS;
@@ -486,7 +485,8 @@ int main(int argc, char **argv)
 		printf("	  -wait=n   (Sets how long we wait (milliseconds) for a complete batch of packets; n > 0)\n");
 		printf("	  -block=n  (Sets the number of threads in a block; n > 0)\n");
 		printf("	  -sequential  (runs router in CPU-only mode w/ sequential code)\n");
-		printf("      -runtime=n  (Sets a runtime in runtime; n > 0)\n");
+		printf("      -runtime=n  (Sets a runtime in seconds; n > 0)\n");
+		printf("      -numrules=n  (If processing is firewall, specifies how many rules to generate; n > 0)\n");
 
 		exit(EXIT_SUCCESS);
 	}
@@ -519,6 +519,14 @@ int main(int argc, char **argv)
 			runtime = n;
 		}
 	}
+	
+#ifdef FIREWALL
+	if (checkCmdLineFlag(argc, (const char **)argv, "numrules"))
+	{
+		int n = getCmdLineArgumentInt(argc, (const char **)argv, "numrules");
+		set_num_rules(n);
+	}
+#endif /* FIREWALL */
 
 	// By default, we use device 0, otherwise we override the device ID based on what is provided at the command line
 	int devID = 0;
