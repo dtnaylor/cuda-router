@@ -1,4 +1,27 @@
 \section{Related Work}
 
 We are by no means the first to explore the use of a GPU for packet processing.
-\TODO{describe PacketShader, Gnort, and Hermes}.
+We briefly summarize here the contributions of some notable projects.\\
+
+\noindent \textbf{PacketShader \cite{Han}} implements IPv4/IPv6 forwarding,
+IPsec encryption, and OpenFlow\cite{McKeown} flow matching on the GPU using
+NVIDIA's CUDA architecture. They were the first to demonstrate the feasability
+of multi-10Gbps software routers.
+
+A second key contribution from PacketShader is a highly optimized packet I/O
+engine. By allocating memory in the NIC driver for batches of packets at a time
+rather than individually and by removing unneeded meta-data fields (parts of
+the Linux networking stack needed by endhosts are never used in a software
+router), they achieve much higher forwarding speeds, even before incorporating
+the GPU. Due to time constraints, we do not make equivalent optimizations in
+our NIC driver, and so we cannot directly compare our results with
+PacketShader's.\\
+
+\noindent \textbf{Gnort \cite{Vasiliadis}} ports the Snort intrusion detection
+system (IDS) to the GPU (also using CUDA). Gnort uses the same basic CPU/GPU
+workflow introduced by PacketShader (see \S\ref{sec:system-design}); its
+primary contribution is implementing fast string pattern-matching on the GPU.\\
+
+\noindent \textbf{Hermes \cite{Zhu}} builds on PacketShader by implementing a
+CPU/GPU software router that dynamically adjusts batch size to simultaneously
+optimize multiple QoS metrics (e.g., bandwidth and latency).\\

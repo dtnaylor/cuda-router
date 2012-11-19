@@ -5,13 +5,37 @@
 \subsubsection{Hardware}
 
 \subsubsection{Packet Generation}
+\TODO{Matt: describe using click generator for ``full-on'' tests and packet trace for ``real-world'' tests}
 
 \subsubsection{Packet Processing}
+\label{sec:eval-proc}
 
 \noindent \textbf{Longest Prefix Match.} Describe the FIB we use...\\
+\TODO{Bruno: describe using RouteViews? FIB...}
 
-\noindent \textbf{Firewall Rule Matching.} Describe our rules...
+\noindent \textbf{Firewall Rule Matching.} To evaluate the performance of our
+router's firewall rule matching function, we generate a set of random firewall
+rules. The 5-tuple values for our random rules are chosen according to the
+distributions in \cite{Rovniagin}. For example, we use the probabilities in
+Table~\ref{tab:proto-dist}, taken from \cite{Rovniagin}, to pick a new rule's
+protocol. Similar statistics were used to pick source/destination address/port.
 
+\begin{table}[htbp]
+   \centering
+   \begin{tabular}{ l l } 
+      \toprule
+      \textbf{Protocol}  & \textbf{Prevelance in Rules} \\
+      \midrule
+	  TCP & 75\% \\
+      UDP & 14\% \\
+	  ICMP & 4\% \\
+	  * & 6\% \\
+	  Other & 1\% \\
+      \bottomrule
+   \end{tabular}
+   \caption{Protocol distribution in firewall rules}
+   \label{tab:proto-dist}
+\end{table}
 
 \subsection{Evaluation Metrics}
 
