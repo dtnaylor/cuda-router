@@ -1,0 +1,75 @@
+\documentclass[12pt]{article}
+\usepackage[margin=1in]{geometry}
+\usepackage{hyperref}
+
+\title{Packet Processing on the GPU\\\small{Milestone Report}}
+\author{Matthew Mukerjee, David Naylor, and Bruno Vavala}
+\date{} % delete this line to display the current date
+
+%%% BEGIN DOCUMENT
+\begin{document}
+
+\maketitle
+
+\noindent \textbf{Major Changes:} None!\\
+
+\noindent \textbf{Progress:} We have met the milestone goal we set in our proposal; in particular, we have implemented the following pieces of our project:
+\begin{itemize}
+	\item A packet generator which outputs UDP packets with random source and destination IP addresses and ports at a constant rate.
+	
+	\item A \emph{CPU-only} router framework that, when given a function that processes a batch of packets (e.g., does longest prefix match lookup), handles gathering packets from our generator, applies the processing function, and takes performance measurements.
+	
+	\item A \emph{GPU/CPU} router framework that, when given a function that processes a batch of packets (e.g., does longest prefix match lookup), handles gathering batches packets from our generator, applies the processing function, and takes performance measurements.
+	
+	\item A packet processing function that checks packets against a list of firewall rules and decides whether or not to drop a packet.
+	
+	\item A packet processing function that applies a trie-based longest prefix match lookup algorithm do the destination IP address.
+	
+	\item A set of scripts for running experiments and plotting the results.
+\end{itemize}
+Using this initial implementation, we have done some preliminary experiments and posted the results on our web page.\\
+
+
+\noindent \textbf{Surprises:}
+\begin{enumerate}
+	\item In our preliminary tests, the GPU/CPU router performs much worse than the CPU-only version. Even without tuning our GPU code, we had expected this initial gap to be smaller.
+
+	\item The Snort IDS ruleset is not freely available. We had hoped to implement IDS rule matching as one of our packet processing functions, but the only way to obtain the ruleset is to buy a subscription. This isn't a huge setback, though, as IDS rule matching is the most difficult to implement of the processing functions we considered, and, given the duration of project, likely would not have been worth the effort.
+\end{enumerate}
+Neither surprise should be a show-stopper; we expected our GPU code to need some tuning, and we think exploring LPM lookup and firewall rule matching will be sufficiently interesting.\\
+
+\noindent \textbf{Revised Schedule:}
+\begin{description}
+	\item[11/18 -- 11/24] \emph{(1 week)} \hfill
+	\begin{description}
+		\item[David] Tune GPU code to improve its performance relative to CPU
+		\item[Bruno] (1) Finish implementing trie-based LPM lookup, (2) implement DIR-24-8-BASIC LPM lookup, and (3) if possible, find a real-world forwarding table for testing
+		\item[Matt] (1) Modify packet generator to produce ``real-world'' traffic patterns and (2) help David tune GPU code
+	\end{description}
+	
+	\item[11/25 -- 12/01] \emph{(1 week)} \hfill
+	\begin{description}
+		\item[All] (1) Continue optimizing GPU code, (2) explore parallelizing multiple concurrent packet processing functions, (3) run tests, and (4) begin final writeup
+	\end{description}
+	
+	\item[12/02 -- 12/04] \emph{(2 days)} \hfill
+	\begin{description}
+		\item[All] Polish final writeup
+	\end{description}
+	
+	\item[12/04 -- 12/06] \emph{(2 days)} \hfill
+	\begin{description}
+		\item[All] Make poster
+	\end{description}
+\end{description}
+
+\vspace{0.3 cm}
+
+\noindent \textbf{Resources Needed:}
+\begin{enumerate}
+	\item Forwarding tables for testing LPM lookup. We plan to obtain these from Route Views (\url{http://www.routeviews.org}).
+	
+	\item A packet trace for generating a ``real-world'' packet stream. We hope to either find a trace online or capture one here at CMU.
+\end{enumerate}
+
+\end{document}
