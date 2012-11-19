@@ -1,0 +1,165 @@
+
+%%%%%%%%%%%%%%%%%%%%%%% file typeinst.tex %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%
+% This is the LaTeX source for the instructions to authors using
+% the LaTeX document class SVMultln with class option 'lnicst'
+% for contributions to the Lecture Notes of the Institute for
+% Computer Sciences, Social-Informatics and
+% Telecommunications Engineering series.
+% www.springer.com/series/XXXX       Springer Heidelberg 2007/08/05
+%
+% It may be used as a template for your own input - copy it
+% to a new file with a new name and use it as the basis for
+% your article. It contains a few tweaked sections to demonstrate
+% features of the package, though.
+%
+% If you have not much experiences with Springer LaTeX support,
+% you should better use the special demonstration file "lnicst.tex"
+% included in the LaTeX package for LNICST as template.
+%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%\documentclass{sig-alternate-10pt}
+\documentclass{sig-alt-hotnets}
+\usepackage{amssymb}
+\setcounter{tocdepth}{3}
+%\usepackage{hyperref}
+\usepackage[english]{babel}
+%\usepackage[pdftex]{graphicx}
+\usepackage[nolist]{acronym}
+\usepackage{subfigure}
+\usepackage[normalem]{ulem}
+\usepackage{url}
+\urldef{\mailsa}\path|mukerjee@cs.cmu.edu|
+\usepackage[pdfpagelabels,hypertexnames=false,breaklinks=true,bookmarksopen=true,bookmarksopenlevel=2]{hyperref}
+%\renewcommand{\labelitemi}{$\bullet$}
+\usepackage{cite}
+
+%%%
+%%% MISC
+%%%t
+\usepackage{ifthen}
+\usepackage{color}
+\usepackage{booktabs}  % for toprule and midrule in tables
+
+%%%
+%%% COMMENTS / TODOS
+%%%
+\newcommand{\showComments}{yes}
+
+\newcommand{\note}[2]{
+    \ifthenelse{\equal{\showComments}{yes}}{\textcolor{#1}{#2}}{}
+}
+\newcommand{\TODO}[1]{%
+	\addcontentsline{tdo}{todo}{\protect{#1}}%
+	\note{red}{TODO: #1}
+}
+\newcommand{\srini}[1]{\note{magenta}{Srini: #1}}
+\newcommand{\dongsu}[1]{\note{red}{Dongsu: #1}}
+\newcommand{\fahad}[1]{\note{red}{Fahad: #1}}
+\newcommand{\jwb}[1]{\note{cyan}{jwb: #1}}
+\newcommand{\michel}[1]{\note{blue}{Michel: #1}}
+\newcommand{\aditya}[1]{\note{violet}{Aditya: #1}}
+\newcommand{\ashok}[1]{\note{blue}{Ashok: #1}}
+\newcommand{\dga}[1]{\note{green}{dga: #1}}
+\newcommand{\hyeontaek}[1]{\note{red}{Hyeontaek: #1}}
+\newcommand{\prs}[1]{\note{purple}{Peter: #1}}
+\newcommand{\boyan}[1]{\note{red}{Boyan: #1}}
+\newcommand{\david}[1]{\note{green}{David: #1}}
+\newcommand{\matt}[1]{\note{blue}{Matt: #1}}
+
+
+\makeatletter \newcommand{\listoftodos}
+{\section*{Todo List} \@starttoc{tdo}}
+\newcommand{\l@todo}
+{\@dottedtocline{1}{0em}{2.3em}} \makeatother
+
+\newcommand{\comment}[1]{}
+
+
+%%
+%% TIKZ to represent graphs and diagrams
+%%
+
+\usepackage{tikz}
+\usepackage{tkz-graph}
+\usetikzlibrary{shapes,arrows}
+
+\newcommand{\entrynode}[1]{
+  \SetVertexNormal[Shape      = circle,
+                   FillColor  = black,
+                   LineWidth  = 0pt,
+                   MinSize    = 0pt]
+  \Vertex[L={\tiny\,}]{#1}
+  \SetVertexNormal[Shape      = circle,
+                   FillColor  = white,
+                   LineWidth  = 2pt]
+}
+
+\SetUpEdge[lw         = 1.5pt,
+           color      = black,
+           labelcolor = white,
+           labeltext  = red,
+           labelstyle = {sloped,draw,text=blue}]
+
+\tikzset{node distance = 2cm}
+
+
+%%%
+%%% DOCUMENT
+%%%
+
+\begin{document}
+
+%\mainmatter  % start of an individual contribution
+
+% first the title is needed
+\title{Packet Processing on the GPU}
+
+% the name(s) of the author(s) follow(s) next
+%
+% NB: Chinese authors should write their first names(s) in front of
+% their surnames. This ensures that the names appear correctly in
+% the running heads and the author index.
+%
+\numberofauthors{3}
+\author{
+\alignauthor
+Matthew Mukerjee\\
+	\affaddr{Carnegie Mellon University}\\
+	\email{mukerjee@cs.cmu.edu}
+\alignauthor
+David Naylor\\
+	\affaddr{Carnegie Mellon University}\\
+	\email{dnaylor@cs.cmu.edu}
+	\alignauthor
+Bruno Vavala\\
+	\affaddr{Carnegie Mellon University}\\
+	\email{bvavala@cs.cmu.edu}
+} 
+
+\maketitle
+
+
+\vspace{-10pt}
+\begin{abstract}
+Abstract...
+
+
+\end{abstract}
+
+\input{intro}
+\input{related}
+\input{design}
+\input{eval}
+
+
+
+
+\vspace{1in}
+
+{\small
+\bibliographystyle{custom_abbrv}
+\bibliography{biblio}
+}
+\end{document}

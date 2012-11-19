@@ -1,0 +1,39 @@
+\section{Introduction}
+
+There are two approaches to implementing packet processing functionality in
+routers: bake the processing logic into hardware, or write it in software. The
+advantage of the former is speed; today's fastest routers perform forwarding
+lookups in dedicated ASICs and achieve line rates of up to 100 Gbps (the
+current standard line rate for a core router is 40 Gbps). \TODO{Cite} On the other hand,
+the appeal of software routers is programability; software routers can more
+easily support complicated packet processing functions and can be reprogrammed
+with updated functionality.
+
+Traditionally, router manufacturers have opted for hardware designs since
+software routers could not come close to achieving the same forwarding rates.
+Recently, however, software routers have begun gaining attention in the
+networking community for two primary reasons:
+\begin{enumerate}
+	\item Commodity hardware has improved significantly, making it possible for
+	software routers to achieve line rates. For example, PacketShader forwards
+	packets at 40 Gbps. \TODO{cite}
+
+	\item Researchers are introducing increasingly more complex packet
+	processing functionality. A good example of this trend is Software Defined
+	Networking \TODO{cite}, wherein each packet is classified as belonging to
+	one or more \emph{flows} and is forwarded accordingly; moreover, the
+	\emph{flow rules} governing forwarding behavior can be updated on the order
+	of minutes or even seconds \TODO{cite}.
+\end{enumerate}
+
+Part of this new-found attention for software routers has been an exploration
+of various hardware architectures that might be best suited for supporting
+software-based packet processing. Since packet processing is naturally an SIMD
+application, a GPU-based router is a promising candidate. The primary job of a
+router is to decide, based on a packet's destination address, through which
+output port the packet should be sent. Since modern GPUs contain hundreds of
+cores \TODO{cite}, they could potentially perform this lookup on hundreds of
+packets in parallel. The same goes for more complex packet processing
+functions, like flow rule matching in a software defined network (SDN).
+
+The rest of this paper ... \TODO{finish}
