@@ -92,8 +92,8 @@ int get_packets(int sockfd, packet* p) {
     if(select(sockfd+1, &rfds, NULL, NULL, &tout) > 0) {
       p[i].size = recv(sockfd, p[i].payload, BUF_SIZE, 0); 
       if(p[i].size > IP_HEADER_SIZE + UDP_HEADER_SIZE) {
-	for(int l = 0; l < IP_HEADER_SIZE; l++) p[i].ip[l] = p[i].payload[l];
-	for(int l = 0; l < UDP_HEADER_SIZE; l++) p[i].udp[l] = p[i].payload[IP_HEADER_SIZE+l];
+	memcpy(p[i].ip, p[i].payload, IP_HEADER_SIZE);
+	memcpy(p[i].udp, &p[i].payload[IP_HEADER_SIZE], UDP_HEADER_SIZE);
 	i++;
       }
     }
