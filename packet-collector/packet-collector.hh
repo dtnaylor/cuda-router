@@ -12,6 +12,8 @@
 #define SERVER_PORT 9877
 #define CLIENT_PORT 9878
 #define BUF_SIZE 4096
+#define IP_HEADER_SIZE 20
+#define UDP_HEADER_SIZE 8
 #define DEFAULT_BATCH_SIZE 1024
 // in milliseconds
 #define DEFAULT_BATCH_WAIT 100
@@ -23,8 +25,10 @@
 
 
 typedef struct _packet {
+  char ip[IP_HEADER_SIZE];
+  char udp[UDP_HEADER_SIZE];
   int size;
-  char buf[BUF_SIZE];
+  char *payload;
 } packet;
 
 typedef struct _udpc {
