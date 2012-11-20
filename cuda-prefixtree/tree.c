@@ -146,7 +146,7 @@ int insert(uint32_t prefix, uint32_t nm, uint16_t port, struct internal_node* n)
 			//next = n->l;
 			next = (struct internal_node*)((char*)n + n->l_offset);
 		}
-        DEBUG("n=%p, next=%p\n", (void*)n, (void*)next);
+        //DEBUG("n=%p, next=%p\n", (void*)n, (void*)next);
 	} while (depth < nm);
 
 	if (next == NULL) {
@@ -300,7 +300,7 @@ void lookup(struct iplookup_node *ilun, uint32_t address, char* output, struct i
         uint32_t v_bit = address & ((uint32_t)1 << b);
 
 #ifdef USECUPRINTF
-        printf("v_bit %u \t bits %u \t pow2 %u \t mypow %u\n", v_bit, b, (uint32_t)pow((double)2, (double)b), 1<<b);
+        //printf("v_bit %u \t bits %u \t pow2 %u \t mypow %u\n", v_bit, b, (uint32_t)pow((double)2, (double)b), 1<<b);
 #endif
 		/* If we've found an internal node, determine which
 		   direction to descend. */
@@ -463,14 +463,71 @@ void print_usage(char* name)
 }
 
 
+void build_serializedtree(char *filename) {
+    struct lpm_tree* tree;
+    //struct lpm_serializedtree sTree;
+    int insertions, ret;
+    
+    FILE* in;
+
+    DEBUG("Create tree (size of pointer=%d, sizeof char=%d)\n", (int)sizeof(tree), (int)sizeof(char));
+	/* Create a fresh tree. */
+	tree = lpm_init();
+
+    /* Read in all prefixes. */
+	in = fopen(filename, "r");
+    insertions = 0;
+	while (1) {
+		char ip_string[40]; /* Longest v6 string */
+		int mask;
+        int port;
+		uint8_t rt;
+		char line[4096];
+		char* rtp;
+        
+		memset(line, '\0', 4096);
+		rtp = fgets(line, 4096, in);
+		/* EOL */
+		if (rtp == NULL) {
+			break;
+		}
+		rt = sscanf(line, "%39s %d %d%*[^\n]", ip_string, &mask, &port);
+		if (rt < 2) {
+			continue;
+		}
+        
+		/* Doesn't handle IPv6; skip anything that looks like a v6 address. */
+		if (strstr(ip_string, ":") != NULL) {
+			continue;
+		}
+        
+        while(1) {
+            ret = lpm_insert(tree, ip_string, mask, port);
+            if(ret) break;
+            else if(cannotdouble_myserializer() == 1) {
+                printf("ERROR: cannot double my serialized\n");
+                exit(-1);
+            }
+            else //myserialized has been doubled, so repeat
+                continue;
+            
+        }
+        DEBUG("Inserted %d prefixes\n", ++insertions);
+	}
+	fclose(in);
+    
+}
+
+#ifndef LPM_TRIE || FIREWALL
+
 int main(int argc, char* argv[])
 {
 	char* input;
-	int opt,i, insertions, ret;
+	int opt,i;
 	struct lpm_tree* tree;
     struct lpm_serializedtree sTree;
-	FILE* in;
 	char* ifile = (char*) "/dev/stdin";
+    FILE* in;
 
 	/* Check inputs; print usage and exit if something is clearly
 	   wrong. */
@@ -498,12 +555,17 @@ int main(int argc, char* argv[])
     DEBUG("Init serializer\n");
     
 	init_myserializer((void**)&tree);
-
+    
+//    build_serializedtree(input);
+    
+    
+    int insertions, ret;
+    
     DEBUG("Create tree (size of pointer=%d, sizeof char=%d)\n", (int)sizeof(tree), (int)sizeof(char));
 	/* Create a fresh tree. */
 	tree = lpm_init();
-
-	/* Read in all prefixes. */
+    
+    /* Read in all prefixes. */
 	in = fopen(input, "r");
     insertions = 0;
 	while (1) {
@@ -513,7 +575,7 @@ int main(int argc, char* argv[])
 		uint8_t rt;
 		char line[4096];
 		char* rtp;
-
+        
 		memset(line, '\0', 4096);
 		rtp = fgets(line, 4096, in);
 		/* EOL */
@@ -524,12 +586,12 @@ int main(int argc, char* argv[])
 		if (rt < 2) {
 			continue;
 		}
-
+        
 		/* Doesn't handle IPv6; skip anything that looks like a v6 address. */
 		if (strstr(ip_string, ":") != NULL) {
 			continue;
 		}
-
+        
         while(1) {
             ret = lpm_insert(tree, ip_string, mask, port);
             if(ret) break;
@@ -539,18 +601,22 @@ int main(int argc, char* argv[])
             }
             else //myserialized has been doubled, so repeat
                 continue;
-                
+            
         }
         DEBUG("Inserted %d prefixes\n", ++insertions);
 	}
 	fclose(in);
+        
 
     sTree.serializedtree_size = finalize_serialized((void**)(&(sTree.serialized_tree)));
-    tree = (struct lpm_tree*) sTree.serialized_tree;
- 
-    lpm_debug_print((struct lpm_tree*)sTree.serialized_tree);
+
     
-    printf("Tree serialized, start lookup!\n");
+    tree = (struct lpm_tree*) sTree.serialized_tree;
+
+    
+    //lpm_debug_print((struct lpm_tree*)sTree.serialized_tree);
+    
+    printf("Tree serialized and checked, start lookup (ILUNARRAYSIZE %d)!\n", ILUNARRAYSIZE);
     
     ilun_array = (struct iplookup_node*)malloc(ILUNARRAYSIZE*sizeof(struct iplookup_node));
     
@@ -573,13 +639,16 @@ int main(int argc, char* argv[])
 
 		/* Read line. */
 		memset(line, '\0', 4096);
+        DEBUG("LINEbef: line %p in %p\n", line, in);
+
 		rtp = fgets(line, 4096, in);
 		if (rtp == NULL) {
 			break;
 		}
 
 		line[strlen(line)-1] = '\0';
-
+        DEBUG("LINE: %s\n", line);
+        
 		pointer = line;
 		strstart = pointer;
 		strend = strstr(strstart, " ");
@@ -666,3 +735,5 @@ int main(int argc, char* argv[])
 	fclose(in);
 	return 1;
 }
+
+#endif

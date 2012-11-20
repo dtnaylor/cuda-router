@@ -1,6 +1,20 @@
 #include <router.h>
+#include "../cuda-prefixtree/mymalloc.h"
+#include "../cuda-prefixtree/tree.h"
+#include "../cuda-prefixtree/cuda-lookup.cuh"
+
 
 #ifdef LPM_TRIE
+
+#define PREFIX_FILE "prefixes.txt"
+
+
+__device__ __constant__ char *dd_serializedtree = NULL;
+__device__ __constant__ int d_serializedtree_size;
+
+struct lpm_serializedtree sTree;
+char *d_serializedtree = NULL;
+
 
 /**
  * A CUDA kernel to be executed on the GPU.
@@ -15,13 +29,93 @@ process_packets(packet *p, int *results, int num_packets, int block_size)
 
 }
 
+
+void _setup_trie() {
+    char* input = (char*) PREFIX_FILE;
+	int opt,i;
+	struct lpm_tree* tree;
+	char* ifile = (char*) "/dev/stdin";
+    FILE* in;
+
+    DEBUG("Init serializer\n");
+    
+	init_myserializer((void**)&tree);
+    
+    //build_serializedtree(input);
+    
+    int insertions, ret;
+    
+    DEBUG("Create tree (size of pointer=%d, sizeof char=%d)\n", (int)sizeof(tree), (int)sizeof(char));
+	/* Create a fresh tree. */
+	tree = lpm_init();
+    
+    /* Read in all prefixes. */
+	in = fopen(input, "r");
+    insertions = 0;
+	while (1) {
+		char ip_string[40]; /* Longest v6 string */
+		int mask;
+        int port;
+		uint8_t rt;
+		char line[4096];
+		char* rtp;
+        
+		memset(line, '\0', 4096);
+		rtp = fgets(line, 4096, in);
+		/* EOL */
+		if (rtp == NULL) {
+			break;
+		}
+		rt = sscanf(line, "%39s %d %d%*[^\n]", ip_string, &mask, &port);
+		if (rt < 2) {
+			continue;
+		}
+        
+		/* Doesn't handle IPv6; skip anything that looks like a v6 address. */
+		if (strstr(ip_string, ":") != NULL) {
+			continue;
+		}
+        
+        while(1) {
+            ret = lpm_insert(tree, ip_string, mask, port);
+            if(ret) break;
+            else if(cannotdouble_myserializer() == 1) {
+                printf("ERROR: cannot double my serialized\n");
+                exit(-1);
+            }
+            else //myserialized has been doubled, so repeat
+                continue;
+            
+        }
+        DEBUG("Inserted %d prefixes\n", ++insertions);
+	}
+	fclose(in);
+        
+
+    sTree.serializedtree_size = finalize_serialized((void**)(&(sTree.serialized_tree)));
+
+    
+    //tree = (struct lpm_tree*) sTree.serialized_tree;
+}
+
+
+void _setup_GPU() {
+    d_serializedtree = _transfer_to_gpu(sTree.serialized_tree, );
+        
+	check_error(cudaMemcpyToSymbol(dd_serializedtree, &d_serializedtree, sizeof(d_serializedtree)), "cudaMemcpyToSymbol (dd_serializedtree, d_serializedtree)", __LINE__);
+	
+	check_error(cudaMemcpyToSymbol(d_serializedtree_size, &, sizeof(int)), "cudaMemcpyToSymbol (d_serializedtree_size, sTree.serializedtree_size)", __LINE__);
+}
+
+
 /**
  * LPM-specific setup. This will be called a single time by router.cu 
  * before the kernel function runs for the first time
  */
 void setup()
 {
-
+    _setup_trie();
+    _setup_GPU();
 }
 
 
@@ -31,7 +125,7 @@ void setup()
  */
 void process_packets_sequential(packet *p, int *results, int num_packets)
 {
-
+    
 }
 
 
@@ -41,7 +135,7 @@ void process_packets_sequential(packet *p, int *results, int num_packets)
  */
 void setup_sequential()
 {
-
+    _setup_trie();
 }
 
 #endif /* LPM_TRIE */
