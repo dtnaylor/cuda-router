@@ -1,11 +1,20 @@
 #include <router.h>
 #include "../cuda-prefixtree/mymalloc.h"
 #include "../cuda-prefixtree/tree.h"
+#include "../cuda-prefixtree/cuda-lookup.cuh"
 
 
 #ifdef LPM_TRIE
 
 #define PREFIX_FILE "prefixes.txt"
+
+
+__device__ __constant__ char *dd_serializedtree = NULL;
+__device__ __constant__ int d_serializedtree_size;
+
+struct lpm_serializedtree sTree;
+char *d_serializedtree = NULL;
+
 
 /**
  * A CUDA kernel to be executed on the GPU.
@@ -20,26 +29,19 @@ process_packets(packet *p, int *results, int num_packets, int block_size)
 
 }
 
-/**
- * LPM-specific setup. This will be called a single time by router.cu 
- * before the kernel function runs for the first time
- */
-void setup()
-{
+
+void _setup_trie() {
     char* input = (char*) PREFIX_FILE;
 	int opt,i;
 	struct lpm_tree* tree;
-    struct lpm_serializedtree sTree;
 	char* ifile = (char*) "/dev/stdin";
     FILE* in;
-
 
     DEBUG("Init serializer\n");
     
 	init_myserializer((void**)&tree);
     
     //build_serializedtree(input);
-    
     
     int insertions, ret;
     
@@ -93,9 +95,27 @@ void setup()
     sTree.serializedtree_size = finalize_serialized((void**)(&(sTree.serialized_tree)));
 
     
-    tree = (struct lpm_tree*) sTree.serialized_tree;
+    //tree = (struct lpm_tree*) sTree.serialized_tree;
+}
 
 
+void _setup_GPU() {
+    d_serializedtree = _transfer_to_gpu(sTree.serialized_tree, );
+        
+	check_error(cudaMemcpyToSymbol(dd_serializedtree, &d_serializedtree, sizeof(d_serializedtree)), "cudaMemcpyToSymbol (dd_serializedtree, d_serializedtree)", __LINE__);
+	
+	check_error(cudaMemcpyToSymbol(d_serializedtree_size, &, sizeof(int)), "cudaMemcpyToSymbol (d_serializedtree_size, sTree.serializedtree_size)", __LINE__);
+}
+
+
+/**
+ * LPM-specific setup. This will be called a single time by router.cu 
+ * before the kernel function runs for the first time
+ */
+void setup()
+{
+    _setup_trie();
+    _setup_GPU();
 }
 
 
@@ -105,7 +125,7 @@ void setup()
  */
 void process_packets_sequential(packet *p, int *results, int num_packets)
 {
-
+    
 }
 
 
@@ -115,7 +135,7 @@ void process_packets_sequential(packet *p, int *results, int num_packets)
  */
 void setup_sequential()
 {
-
+    _setup_trie();
 }
 
 #endif /* LPM_TRIE */
