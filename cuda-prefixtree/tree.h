@@ -41,7 +41,7 @@ int lpm_lookup(struct lpm_tree* tree, struct iplookup_node* ilun, char* output);
  */
 void lpm_debug_print(struct lpm_tree* tree);
 
-
+void build_serializedtree(char *filename);
 
 /* Gubbins. */
 
