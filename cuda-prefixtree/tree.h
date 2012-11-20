@@ -61,10 +61,17 @@ struct lpm_tree {
 	//struct internal_node* head;
 	int32_t h_offset;
     int32_t h_offset2;
+	//char* serialized_tree;
+	//uint32_t serializedtree_size;
+    //uint32_t serializedtree_size2;
+};
+
+struct lpm_serializedtree {
 	char* serialized_tree;
 	uint32_t serializedtree_size;
     uint32_t serializedtree_size2;
 };
+
 
 struct internal_node {
 	uint32_t type;

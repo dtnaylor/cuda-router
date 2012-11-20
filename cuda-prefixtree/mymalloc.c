@@ -11,7 +11,12 @@
 #include <sys/types.h>
 #include "mymalloc.h"
 
+#ifdef USEDEBUG
 int mallocdebug = 1;
+#else
+int mallocdebug = 0;
+#endif
+
 #define DEBUG(...) do { if (mallocdebug) fprintf(stdout, __VA_ARGS__); } while (0)
 
 
@@ -19,7 +24,7 @@ int mallocdebug = 1;
 
 unsigned int allocatedbytes=0;
 serializer_t myserializer;
-
+void **init_p;
 
 void* mymalloc(size_t size) {
 	void* p;
@@ -37,12 +42,14 @@ unsigned int getallocatedbytes(){
 	return allocatedbytes;
 }
 
-void init_myserializer() {
-	myserializer.buffer = (char*)malloc(INITIAL_BUFFER_SIZE);
+void init_myserializer(void** p) {
+    init_p = p;
+	myserializer.buffer = (char*)malloc(INITIAL_BUFFER_SIZE*sizeof(char));
 	if(myserializer.buffer==NULL) printf("ERROR: impossible to init array\n");
 	myserializer.size = INITIAL_BUFFER_SIZE;
 	myserializer.free_bytes = INITIAL_BUFFER_SIZE;
 	myserializer.next_available_byte = myserializer.buffer;
+    myserializer.cannotdouble=0;
     DEBUG("## myserialized inizialized, %d free bytes\n", (int)myserializer.free_bytes);
 }
 
@@ -51,19 +58,29 @@ void uninit_myserializer() {
     myserializer.size = 0;
     myserializer.free_bytes = 0;
     myserializer.next_available_byte = NULL;
+    myserializer.cannotdouble=0;
 }
 
 void _doubleserializersize() {
 	char *p;
 	uint32_t next_available_offset = myserializer.next_available_byte - myserializer.buffer;
 	p = (char*)realloc(myserializer.buffer, 2*myserializer.size);
-	if(p==NULL) printf("ERROR: impossible to double array\n");
-
-	myserializer.buffer = p;
+	if(p==NULL) {
+        printf("ERROR: impossible to double array\n");
+        myserializer.cannotdouble = 1;
+    }
+    
+    *init_p = p;
+	
+    myserializer.buffer = p;
 	myserializer.free_bytes += myserializer.size;
 	myserializer.size *= 2;
 	myserializer.next_available_byte = myserializer.buffer + next_available_offset;
     DEBUG("## myserialized reallocated, %d free bytes\n", (int)myserializer.free_bytes);
+}
+
+int cannotdouble_myserializer() {
+    return myserializer.cannotdouble;
 }
 
 void* myserializedmalloc(size_t size) {
@@ -79,8 +96,17 @@ void* myserializedmalloc(size_t size) {
 	return ret;
 }
 
+int try_myserializedmalloc(size_t size) {
+	if(size > myserializer.free_bytes) { // if not enough, it must make the nested functions fail and restart becuase the pointer may change
+		_doubleserializersize();
+        return 0;
+    }
+    
+    return 1;
+}
+
 void myserializedfree(void *p) {
-    p=p;
+    p=p; //do nothing
     return;
 }
 

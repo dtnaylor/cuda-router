@@ -41,9 +41,13 @@
 #include "mymalloc.h"
 #include "cuda-lookup.cuh"
 
+#ifdef USEDEBUG
 int debug = 1;
+#else
+int debug = 0;
+#endif
 
-#define ILUNARRAYSIZE 32
+#define ILUNARRAYSIZE 11000
 struct iplookup_node *ilun_array;
 
 
@@ -55,6 +59,9 @@ struct iplookup_node *ilun_array;
  */
 struct data_node* create_data_node(uint32_t prefix, uint8_t netmask, uint16_t port)
 {
+    if(!try_myserializedmalloc(sizeof(struct data_node))) // serialization array probably doubled but pointers probably changed, so nested function must restart
+        return NULL;
+    
 	struct data_node* node = (struct data_node*)myserializedmalloc(sizeof(struct data_node));
 	DEBUG("## Created data node %p for %d\n", (void*)node, prefix);
 	node->type  = DAT_NODE;
@@ -73,6 +80,9 @@ struct data_node* create_data_node(uint32_t prefix, uint8_t netmask, uint16_t po
  */
 struct internal_node* create_internal_node()
 {
+    if(!try_myserializedmalloc(sizeof(struct internal_node))) // serialization array probably doubled but pointers probably changed, so nested function must restart
+        return NULL;
+    
 	struct internal_node* tmp = (struct internal_node*)myserializedmalloc(sizeof(struct internal_node));
 	DEBUG("## Created internal node %p\n", (void*)tmp);
 	tmp->type = INT_NODE;
@@ -87,7 +97,7 @@ struct internal_node* create_internal_node()
 /*
  * This function used internally; see lpm_insert().
  */
-void insert(uint32_t prefix, uint32_t nm, uint16_t port, struct internal_node* n)
+int insert(uint32_t prefix, uint32_t nm, uint16_t port, struct internal_node* n)
 {
 	uint8_t b = MAX_BITS;
 	uint8_t depth = 0;
@@ -105,19 +115,21 @@ void insert(uint32_t prefix, uint32_t nm, uint16_t port, struct internal_node* n
 		depth++;
 
 		parent = (struct internal_node*)n;
-		uint32_t v_bit = prefix & ((uint32_t)pow(2, b));
+		//uint32_t v_bit = prefix & ((uint32_t)pow(2, b));
+        uint32_t v_bit = prefix & ((uint32_t) 1 << b);
+
 
 		/* Determine which direction to descend. */
 		if (v_bit) {
 			//if (n->r == NULL) {
 			if (n->r_offset == 0) {
-                //DEBUG("creating right child\n");
 				//n->r = create_internal_node();
 				r = create_internal_node();
+                if(r == NULL) return 0; // interrupt immediately and perhaps restart later
 				n->r_offset = ((char*)r - (char*)n);
                 
                 next = (struct internal_node*)((char*)n + n->r_offset);
-                if(next!=r) printf("ERROR: BAD POINTERS!\n");
+                if(next!=r) printf("ERROR: BAD POINTERS! (n %p r %p off %d)\n", n, r, n->r_offset);
 			}
 			//next = n->r;
 			next = (struct internal_node*)((char*)n + n->r_offset);
@@ -125,13 +137,12 @@ void insert(uint32_t prefix, uint32_t nm, uint16_t port, struct internal_node* n
 		else {
 			//if (n->l == NULL) {
 			if (n->l_offset == 0) {
-                //DEBUG("creating left child\n");
 				l = create_internal_node();
+                if(l == NULL) return 0; // interrupt immediately and perhaps restart later
 				n->l_offset = ((char*)l - (char*)n);
                 
                 next = (struct internal_node*)((char*)n + n->l_offset);
-                if(next!=l) printf("ERROR: BAD POINTERS (next=%p, next+1=%p)!\n", (void*)next, (void*)(next+1));
-			}
+                if(next!=l) printf("ERROR: BAD POINTERS (n %p l %p off %d)\n", n, r, n->l_offset);			}
 			//next = n->l;
 			next = (struct internal_node*)((char*)n + n->l_offset);
 		}
@@ -141,7 +152,9 @@ void insert(uint32_t prefix, uint32_t nm, uint16_t port, struct internal_node* n
 	if (next == NULL) {
 		/* The easy case. */
 		struct data_node* node = create_data_node(prefix, nm, port);
-		uint32_t v_bit = prefix & ((uint32_t)pow(2, b));
+        if(node == NULL) return 0; // interrupt immediately and perhaps restart later
+		//uint32_t v_bit = prefix & ((uint32_t)pow(2, b));
+		uint32_t v_bit = prefix & ((uint32_t) 1 << b);
 		if (v_bit) {
 			//parent->r = (struct internal_node*)node;
 			parent->r_offset = ((char*)node - (char*)parent);
@@ -154,8 +167,11 @@ void insert(uint32_t prefix, uint32_t nm, uint16_t port, struct internal_node* n
 	else if (next->type == INT_NODE) {
 		/* In this case, we've descended as far as we can. Attach the
 		   prefix here. */
-		uint32_t v_bit = prefix & ((uint32_t)pow(2, b));
+		//uint32_t v_bit = prefix & ((uint32_t)pow(2, b));
+		uint32_t v_bit = prefix & ((uint32_t) 1 << b);
 		struct data_node* newnode = create_data_node(prefix, nm, port);
+        if(newnode == NULL) return 0; // interrupt immediately and perhaps restart later
+
 		//newnode->l = next->l;
 		newnode->l_offset = ((char*)next - (char*)newnode) + next->l_offset;
 		//newnode->r = next->r;
@@ -173,6 +189,8 @@ void insert(uint32_t prefix, uint32_t nm, uint16_t port, struct internal_node* n
 		DEBUG("## Freeing %p\n", (void*)n);
 		//myfree(next);
 	}
+    
+    return 1;
 }
 
 /* destroy:
@@ -218,7 +236,7 @@ struct lpm_tree* lpm_init()
 
 	/* Build empty internal node, and attach it to new tree. */
 	struct internal_node* node = create_internal_node();
-
+    
 	//tree->head = node;
 	tree->h_offset = ((char*)node - (char*)tree);
 	return tree;
@@ -233,6 +251,7 @@ struct lpm_tree* lpm_init()
 int lpm_insert(struct lpm_tree* tree, char* ip_string, uint32_t netmask, uint16_t port)
 {
 	uint32_t ip;
+    int ret;
 	if (!inet_pton(AF_INET, ip_string, &ip) || netmask > 32) {
 		return 0;
 	}
@@ -240,11 +259,13 @@ int lpm_insert(struct lpm_tree* tree, char* ip_string, uint32_t netmask, uint16_
 
 	DEBUG(">> Inserting %s/%d===================================================\n", ip_string, netmask);
 
-	//insert(ip, netmask, tree->head);
-    insert(ip, netmask, port, (struct internal_node*)((char*)tree + tree->h_offset));
-	DEBUG(">> Done inserting %s/%d =============================================\n", ip_string, netmask);
-
-	return 1;
+    //insert(ip, netmask, tree->head);
+    ret = insert(ip, netmask, port, (struct internal_node*)((char*)tree + tree->h_offset));
+ 
+	if(ret)
+        DEBUG(">> Done inserting %s/%d =============================================\n", ip_string, netmask);
+    
+	return ret;
 }
 
 /*
@@ -255,6 +276,7 @@ void lookup(struct iplookup_node *ilun, uint32_t address, char* output, struct i
 	uint32_t b = MAX_BITS;
 	struct internal_node* parent;
 	struct internal_node* next = n;
+    uint16_t iterations=0;
 
 	uint32_t best_prefix = 0;
 	uint8_t  best_netmask = 0;
@@ -263,35 +285,58 @@ void lookup(struct iplookup_node *ilun, uint32_t address, char* output, struct i
 	char addr_string[16];
 	uint32_t tmp = htonl(address);
 	inet_ntop(AF_INET, &tmp, addr_string, 16);
+    
+#ifdef USECUPRINTF
+    printf("root is:%p, loffset %d roffset %d\n", next, next->l_offset, next->r_offset);
+#endif
 
 	do {
 		n = next;
 		b--;
-
+        iterations++;
+        
 		parent = (struct internal_node*)n;
-		uint32_t v_bit = address & ((uint32_t)pow(2, b));
+		//uint32_t v_bit = address & ((uint32_t)pow(2, b));
+        uint32_t v_bit = address & ((uint32_t)1 << b);
 
+#ifdef USECUPRINTF
+        printf("v_bit %u \t bits %u \t pow2 %u \t mypow %u\n", v_bit, b, (uint32_t)pow((double)2, (double)b), 1<<b);
+#endif
 		/* If we've found an internal node, determine which
 		   direction to descend. */
 		if (v_bit) {
 			//next = n->r;
 			next = (struct internal_node*)((char*)n + n->r_offset);
+#ifdef USECUPRINTF
+            printf("next right is:%p loffset %d roffset %d\n", next, next->l_offset, next->r_offset);
+            
+#endif
 		}
 		else {
 			//next = n->l;
 			next = (struct internal_node*)((char*)n + n->l_offset);
+#ifdef USECUPRINTF
+            printf("next left is:%p loffset %d roffset %d\n", next, next->l_offset, next->r_offset);
+            
+#endif
 		}
 
 		if (n->type == DAT_NODE) {
 			struct data_node* node = (struct data_node*)n;
 
+#ifdef USECUPRINTF
+            printf("data node found , iter %d\n", iterations);
+#endif
+            
 			char prefix[16];
 			tmp = htonl(node->prefix);
 			inet_ntop(AF_INET, &tmp, prefix, 16);
 
 			uint32_t mask = 0xFFFFFFFF;
 
-			mask = mask - ((uint32_t)pow(2, 32 - node->netmask) - 1);
+			//mask = mask - ((uint32_t)pow(2, 32 - node->netmask) - 1);
+            mask = mask - (((uint32_t)1 << (32 - node->netmask)) - 1);
+
 
 			if ((address & mask) == node->prefix) {
 				best_prefix = node->prefix;
@@ -305,6 +350,8 @@ void lookup(struct iplookup_node *ilun, uint32_t address, char* output, struct i
     } while (next != n); //termination when offset is 0 and they are equal
 	//} while (next != NULL);
 
+    ilun->port2 = iterations;
+    
 	if (!best_prefix) {
 		sprintf(output, "NF");
 	}
@@ -356,24 +403,24 @@ int lpm_lookup(struct lpm_tree* tree, struct iplookup_node *ilun, char* output)
  */
 void debug_print(struct internal_node* parent, int left, int depth, struct internal_node* n)
 {
-	printf("parent:%p", (void*)parent);
+	DEBUG("parent:%p", (void*)parent);
 	if (left == 1) {
-		printf("->L");
+		DEBUG("->L");
 	}
 	else if (left == 0) {
-		printf("->R");
+		DEBUG("->R");
 	}
 	else {
-		printf("---");
+		DEBUG("---");
 	}
 
 	//if (n == NULL) {
     if(parent == n) { // this happens when offset is 0
-		printf(" Reached a null bottom %p\n", (void*)n);
+		DEBUG(" Reached a null bottom %p\n", (void*)n);
 		return;
 	}
 	else if (n->type == INT_NODE) {
-		printf(" Internal node %p.\n", (void*)n);
+		DEBUG(" Internal node %p.\n", (void*)n);
 	} 
 	else {
 		struct data_node* node = (struct data_node*)n;
@@ -382,15 +429,13 @@ void debug_print(struct internal_node* parent, int left, int depth, struct inter
 		char output[16];
 		inet_ntop(AF_INET, &tmp, output, 16);
 
-		printf(" External node: %p, %s/%d, %d\n", (void*)n, output, node->netmask, node->port);
+		DEBUG(" External node: %p, %s/%d, %d\n", (void*)n, output, node->netmask, node->port);
 	}
 
-	//debug_print(n, 1, depth+1, n->l);
     DEBUG("debugging n %p, offsets %d %d\n", (void*)n, n->l_offset, n->r_offset);
 
 	debug_print(n, 1, depth+1, (struct internal_node*)((char*)n + n->l_offset));
 
-	//debug_print(n, 0, depth+1, n->r);
 	debug_print(n, 0, depth+1, (struct internal_node*)((char*)n + n->r_offset));
 
 }
@@ -421,8 +466,9 @@ void print_usage(char* name)
 int main(int argc, char* argv[])
 {
 	char* input;
-	int opt,i;
+	int opt,i, insertions, ret;
 	struct lpm_tree* tree;
+    struct lpm_serializedtree sTree;
 	FILE* in;
 	char* ifile = (char*) "/dev/stdin";
 
@@ -451,7 +497,7 @@ int main(int argc, char* argv[])
 
     DEBUG("Init serializer\n");
     
-	init_myserializer();
+	init_myserializer((void**)&tree);
 
     DEBUG("Create tree (size of pointer=%d, sizeof char=%d)\n", (int)sizeof(tree), (int)sizeof(char));
 	/* Create a fresh tree. */
@@ -459,7 +505,7 @@ int main(int argc, char* argv[])
 
 	/* Read in all prefixes. */
 	in = fopen(input, "r");
-    
+    insertions = 0;
 	while (1) {
 		char ip_string[40]; /* Longest v6 string */
 		int mask;
@@ -484,18 +530,26 @@ int main(int argc, char* argv[])
 			continue;
 		}
 
-		lpm_insert(tree, ip_string, mask, port);
-
+        while(1) {
+            ret = lpm_insert(tree, ip_string, mask, port);
+            if(ret) break;
+            else if(cannotdouble_myserializer() == 1) {
+                printf("ERROR: cannot double my serialized\n");
+                exit(-1);
+            }
+            else //myserialized has been doubled, so repeat
+                continue;
+                
+        }
+        DEBUG("Inserted %d prefixes\n", ++insertions);
 	}
 	fclose(in);
 
-    tree->serializedtree_size = finalize_serialized((void**)(&(tree->serialized_tree)));
-
-    printf("Checking Tree!\n");
-    DEBUG("debugging tree %p, offset %d, head %p\n", (void*)tree, tree->h_offset, (void*)((char*)tree + tree->h_offset));
-
-	lpm_debug_print((struct lpm_tree*)tree->serialized_tree);
-
+    sTree.serializedtree_size = finalize_serialized((void**)(&(sTree.serialized_tree)));
+    tree = (struct lpm_tree*) sTree.serialized_tree;
+ 
+    lpm_debug_print((struct lpm_tree*)sTree.serialized_tree);
+    
     printf("Tree serialized, start lookup!\n");
     
     ilun_array = (struct iplookup_node*)malloc(ILUNARRAYSIZE*sizeof(struct iplookup_node));
@@ -556,12 +610,10 @@ int main(int argc, char* argv[])
                 ilun.port = 0;
                 ilun_array[i++] = ilun;
 
-                //rt = lpm_lookup(tree, &ilun, address_string, output);
-                rt = lpm_lookup((struct lpm_tree*)tree->serialized_tree, &ilun, output);
-
+                rt = lpm_lookup((struct lpm_tree*)sTree.serialized_tree, &ilun, output);
             }
 			if (rt) {
-				printf("%s , port %d", output, ilun.port);
+				printf("%s , port %d, port2 %d\n", output, ilun.port, ilun.port2);
 			}
 			else {
 				printf("%s ", address_string);
@@ -572,11 +624,11 @@ int main(int argc, char* argv[])
 		}
 
 		memset(output, '\0', 16);
-		//rt = lpm_lookup(tree, &ilun, strstart, output);
-        rt = lpm_lookup((struct lpm_tree*)tree->serialized_tree, &ilun, output);
+
+        rt = lpm_lookup((struct lpm_tree*)sTree.serialized_tree, &ilun, output);
 
 		if (rt) {
-			printf("%s , port %d\n", output, ilun.port);
+			printf("%s , port %d, port2 %d\n", output, ilun.port, ilun.port2);
 		}
 		else {
 			printf("%s\n", strstart);
@@ -591,32 +643,24 @@ int main(int argc, char* argv[])
         i++;
     }
     
-    lpm_lookup((struct lpm_tree*)tree->serialized_tree, &(ilun_array[0]), output);
+    //lpm_lookup((struct lpm_tree*)tree->serialized_tree, &(ilun_array[0]), output);
+    lpm_lookup((struct lpm_tree*)sTree.serialized_tree, &(ilun_array[0]), output);
     printf("custom lookup %s , port %d\n", output, ilun_array[0].port);
-    
-    char *p = (char*) tree->serialized_tree;
-    uint32_t s = tree->serializedtree_size;
+
+
     DEBUG("go CUDA\n");
 
-    DEBUG("before gocuda: tree %p treeser %p size %d ilun %p output %p\n", tree, tree->serialized_tree, tree->serializedtree_size, &(ilun_array[0]), output );
-    p = go_cuda(p, s , ilun_array, i);
-    DEBUG("after  gocuda: tree %p treeser %p size %d ilun %p output %p, and retvalue p %p\n", tree, tree->serialized_tree, tree->serializedtree_size, &(ilun_array[0]), output, p );
+    go_cuda(sTree.serialized_tree, sTree.serializedtree_size , ilun_array, ILUNARRAYSIZE);
+    
     DEBUG("end of CUDA, results:\n");
     
     //tree->serialized_tree = p;
+    //sTree.serialized_tree = p;
     
     for(i=0; i<ILUNARRAYSIZE;i++) {
-        printf("ip:%d to be routed to port %d\n", ilun_array[i].ip, ilun_array[i].port);
+        printf("ip:%d to be routed to port %d, port2=%d\n", ilun_array[i].ip, ilun_array[i].port, ilun_array[i].port2);
     }
 
-    DEBUG("strustrure sizes: structtree=%d pointertree=%d structintnode=%d structdatanode=%d structilun=%d uint64=%d,uint32=%d, uint16=%d):\n", sizeof(struct lpm_tree),sizeof(struct lpm_tree*), sizeof(struct internal_node),sizeof(struct data_node),sizeof(struct iplookup_node), sizeof(uint64_t), sizeof(uint32_t), sizeof(uint16_t));
-
-    DEBUG("before lookup2: tree %p treeser %p size %d ilun %p output %p\n", tree, tree->serialized_tree, tree->serializedtree_size, &(ilun_array[0]), output );
-
-    lpm_lookup((struct lpm_tree*)tree->serialized_tree, &(ilun_array[0]), output);
-    printf("custom lookup2 %s , port %d\n", output, ilun_array[0].port);
-    
-	//printf("%d bytes allocated\n", getallocatedbytes());
 	//lpm_destroy(tree);
 
 	fclose(in);
