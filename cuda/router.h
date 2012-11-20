@@ -24,7 +24,7 @@
 #define V_INFO 1
 #define V_DEBUG_TIMING 2
 #define V_DEBUG 3
-#define VERBOSITY V_INFO
+#define VERBOSITY V_DEBUG
 #define PRINT(verbosity, ...) do { if (verbosity <= VERBOSITY) fprintf(stdout, __VA_ARGS__); } while (0)
 
 

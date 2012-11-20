@@ -129,12 +129,13 @@ firewall.o: firewall.cu
 	$(NVCC) $(NVCCFLAGS) $(EXTRA_NVCCFLAGS) $(GENCODE_FLAGS) $(INCLUDES) -o $@ -c $<
 
 lpm_trie.o: lpm_trie.cu
-	$(NVCC) $(NVCCFLAGS) $(EXTRA_NVCCFLAGS) $(GENCODE_FLAGS) $(INCLUDES) -o $@ -c $<
+	$(NVCC) $(NVCCFLAGS) $(EXTRA_NVCCFLAGS) $(GENCODE_FLAGS) $(INCLUDES) -DUSEDEBUG -o $@ -c $<
 
 router.o: router.cu
 	$(NVCC) $(NVCCFLAGS) $(EXTRA_NVCCFLAGS) $(GENCODE_FLAGS) $(INCLUDES) -o $@ -c $<
 
-router: router.o firewall.o lpm_trie.o ../packet-collector/packet-collector.o
+
+router: router.o firewall.o lpm_trie.o ../packet-collector/packet-collector.o ../cuda-prefixtree/mymalloc.o ../cuda-prefixtree/tree.o ../cuda-prefixtree/cuda-lookup.o
 	$(GCC) $(CCFLAGS) -o $@ $+ $(LDFLAGS) $(EXTRA_LDFLAGS)
 
 

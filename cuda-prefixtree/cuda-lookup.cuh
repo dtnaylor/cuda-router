@@ -12,6 +12,4 @@ char* _transfer_to_gpu(char *buffer, uint32_t size);
 void cuda_lpm_lookup_oncpu(char* d_serializedtree, struct iplookup_node *ilun_array, uint32_t ilunarraysize);
 
 
-__global__ void cuda_lpm_lookup(char* d_serializedtree, struct iplookup_node *ilun_array, uint32_t ilunarraysize);
-
 #endif

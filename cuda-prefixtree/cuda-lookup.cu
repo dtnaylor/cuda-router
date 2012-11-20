@@ -25,7 +25,7 @@
 #include "cuda-lookup.cuh"
 
 #include <stdio.h>
-#include <math.h>
+//#include <math.h>
 #include <cuda_runtime.h>
 
 #ifdef USECUPRINTF    
@@ -44,11 +44,13 @@ __VA_ARGS__)
 
 #ifdef USEDEBUG
 int gpudebug = 1;
+#define DEBUG(...) do { if (gpudebug) fprintf(stdout, __VA_ARGS__); } while (0)
 #else
 int gpudebug = 0;
+#define DEBUG(...) (void)0
+
 #endif
 
-#define DEBUG(...) do { if (gpudebug) fprintf(stdout, __VA_ARGS__); } while (0)
 
 
 //void cuda_lookup(struct iplookup_node *ilun, struct internal_node* n);
