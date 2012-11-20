@@ -37,6 +37,30 @@ inline bool do_run() {
 int run(int argc, char **argv, int block_size, int server_sockfd, udpc client)
 {
 	PRINT(V_INFO, "Running CPU/GPU code\n\n");
+	
+	// Get the GPU ready
+	// By default, we use device 0, otherwise we override the device ID based on what is provided at the command line
+	int devID = 0;
+
+	if (checkCmdLineFlag(argc, (const char **)argv, "device"))
+	{
+		devID = getCmdLineArgumentInt(argc, (const char **)argv, "device");
+		cudaSetDevice(devID);
+	}
+
+	cudaDeviceProp deviceProp;
+	check_error(cudaGetDevice(&devID), "cudaGetDevice", __LINE__);
+	check_error(cudaGetDeviceProperties(&deviceProp, devID), "cudaGetDeviceProperties", __LINE__);
+
+	if (deviceProp.computeMode == cudaComputeModeProhibited)
+	{
+		fprintf(stderr, "Error: device is running in <Compute Mode Prohibited>, no threads can use ::cudaSetDevice().\n");
+		exit(EXIT_SUCCESS);
+	}
+
+	PRINT(V_INFO, "GPU Device %d: \"%s\" with compute capability %d.%d\n\n", devID, deviceProp.name, deviceProp.major, deviceProp.minor);
+
+
 
 	gettimeofday(&start_time, NULL);
 
@@ -49,8 +73,16 @@ int run(int argc, char **argv, int block_size, int server_sockfd, udpc client)
 	// or being processed)
 	packet* h_p1 = (packet *)malloc(buf_size);
 	check_malloc(h_p1, "h_p1", __LINE__);
+  	for(int i = 0; i < get_batch_size(); i++) {
+  	  h_p1[i].payload = (char *)malloc(BUF_SIZE*sizeof(char));
+	  check_malloc(h_p1[i].payload, "h_p1[i].payload", __LINE__);
+  	}
 	packet* h_p2 = (packet *)malloc(buf_size);
 	check_malloc(h_p2, "h_p2", __LINE__);
+  	for(int i = 0; i < get_batch_size(); i++) {
+  	  h_p2[i].payload = (char *)malloc(BUF_SIZE*sizeof(char));
+	  check_malloc(h_p2[i].payload, "h_p2[i].payload", __LINE__);
+  	}
 
 	// Allocate host memory for 2 arrays of results
 	int *h_results1 = (int*)malloc(results_size);
@@ -176,7 +208,7 @@ int run(int argc, char **argv, int block_size, int server_sockfd, udpc client)
 			check_error(cudaMemcpy(h_results_previous, d_results_previous, results_size, cudaMemcpyDeviceToHost), "cudaMemcpy (h_results, d_results)", __LINE__);
 
 			// Forward packets (right now, h_p_next still holds the *previous* batch)
-			send_packets(client, h_p_next, num_packets_next);
+			send_packets(client, h_p_next, num_packets_next, h_results_previous);
 
 #ifdef MEASURE_LATENCY
 			gettimeofday(&lat_stop, NULL);
@@ -303,6 +335,8 @@ int run(int argc, char **argv, int block_size, int server_sockfd, udpc client)
 	cudaFree(d_results1);
 	cudaFree(d_results2);
 
+	teardown();
+
 	cudaDeviceReset();
 
 	return EXIT_SUCCESS;
@@ -320,8 +354,8 @@ void test(int server_sockfd)
 	  PRINT(V_DEBUG, "i = %d\n", num_packets);
 
 	  if (num_packets > 0) {
-	  	struct ip *ip_hdr = (struct ip*)p->buf;
-		struct udphdr *udp_hdr = (struct udphdr*)&(p->buf[sizeof(struct ip)]);
+	  	struct ip *ip_hdr = (struct ip*)p->ip;
+		struct udphdr *udp_hdr = (struct udphdr*)p->udp;
 		PRINT(V_DEBUG, "Dest: %s (%u)\n", inet_ntoa(ip_hdr->ip_dst), ntohs(udp_hdr->uh_dport));
 		PRINT(V_DEBUG, "Source: %s (%u)\n", inet_ntoa(ip_hdr->ip_src), ntohs(udp_hdr->uh_sport));
 		PRINT(V_DEBUG, "Next proto: %u\n", ip_hdr->ip_p);
@@ -342,6 +376,10 @@ int run_sequential(int argc, char **argv, int server_sockfd, udpc client)
 	// Allocate buffer for packets
 	packet* p = (packet *)malloc(buf_size);
 	check_malloc(p, "p", __LINE__);
+  	for(int i = 0; i < get_batch_size(); i++) {
+  	  p[i].payload = (char *)malloc(BUF_SIZE*sizeof(char));
+	  check_malloc(p[i].payload, "p[i].payload", __LINE__);
+  	}
 
 	// Allocate array for results
 	int *results = (int*)malloc(results_size);
@@ -412,7 +450,7 @@ int run_sequential(int argc, char **argv, int server_sockfd, udpc client)
 #endif /*MEASURE_PROCESSING_MICROBENCHMARK*/
 
 		// Return the batch of packets to click for forwarding
-		send_packets(client, p, num_packets);
+		send_packets(client, p, num_packets, results);
 
 #ifdef MEASURE_LATENCY
 		gettimeofday(&lat_stop, NULL);
@@ -528,26 +566,6 @@ int main(int argc, char **argv)
 	}
 #endif /* FIREWALL */
 
-	// By default, we use device 0, otherwise we override the device ID based on what is provided at the command line
-	int devID = 0;
-
-	if (checkCmdLineFlag(argc, (const char **)argv, "device"))
-	{
-		devID = getCmdLineArgumentInt(argc, (const char **)argv, "device");
-		cudaSetDevice(devID);
-	}
-
-	cudaDeviceProp deviceProp;
-	check_error(cudaGetDevice(&devID), "cudaGetDevice", __LINE__);
-	check_error(cudaGetDeviceProperties(&deviceProp, devID), "cudaGetDeviceProperties", __LINE__);
-
-	if (deviceProp.computeMode == cudaComputeModeProhibited)
-	{
-		fprintf(stderr, "Error: device is running in <Compute Mode Prohibited>, no threads can use ::cudaSetDevice().\n");
-		exit(EXIT_SUCCESS);
-	}
-
-	PRINT(V_INFO, "GPU Device %d: \"%s\" with compute capability %d.%d\n\n", devID, deviceProp.name, deviceProp.major, deviceProp.minor);
 	
 	
 	// Set up the socket for receiving packets from click

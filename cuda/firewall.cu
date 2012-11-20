@@ -48,15 +48,15 @@ process_packets(packet *p, int *results, int num_packets, int block_size)
 {
 	int packet_index = blockIdx.x * block_size + threadIdx.x;
 
-	struct ip *ip_hdr = (struct ip*)p[packet_index].buf;
+	struct ip *ip_hdr = (struct ip*)p[packet_index].ip;
 	
 	uint16_t sport, dport;
 	if (ip_hdr->ip_p == 17) {
-		struct udphdr *udp_hdr = (struct udphdr*)&(p[packet_index].buf[sizeof(struct ip)]);
+		struct udphdr *udp_hdr = (struct udphdr*)p[packet_index].udp;
 		sport = d_ntohs(udp_hdr->uh_sport);
 		dport = d_ntohs(udp_hdr->uh_dport);
 	} else if (ip_hdr->ip_p == 6) {
-		struct tcphdr *tcp_hdr = (struct tcphdr*)&(p[packet_index].buf[sizeof(struct ip)]);
+		struct tcphdr *tcp_hdr = (struct tcphdr*)p[packet_index].udp; // FIXME
 		sport = d_ntohs(tcp_hdr->th_sport);
 		dport = d_ntohs(tcp_hdr->th_dport);
 	} else {
@@ -174,6 +174,13 @@ void generate_rules(int num_rules, rule* rules)
 	rules[0].dst_port = 4321;
 	rules[0].proto = 17;
 	rules[0].action = RESULT_DROP;*/
+	
+	/*rules[0].src_ip = 0;
+	rules[0].dst_ip = 0;
+	rules[0].src_port = 0;
+	rules[0].dst_port = 0;
+	rules[0].proto = 18;
+	rules[0].action = RESULT_DROP;*/
 
 }
 
@@ -200,6 +207,17 @@ void setup()
 }
 
 
+/**
+ * Firewall-specific teardown. This will be called a single time by router.cu 
+ * after the kernel function runs last time
+ */
+void teardown()
+{
+	free(h_rules);
+	cudaFree(d_rules);
+}
+
+
 
 /**
  * A CPU-only sequential version of the firewall packet processing function
@@ -208,15 +226,15 @@ void process_packets_sequential(packet *p, int *results, int num_packets)
 { 
 	int packet_index;
 	for (packet_index = 0; packet_index < get_batch_size(); packet_index++) {
-		struct ip *ip_hdr = (struct ip*)p[packet_index].buf;
+		struct ip *ip_hdr = (struct ip*)p[packet_index].ip;
 		
 		uint16_t sport, dport;
 		if (ip_hdr->ip_p == 17) {
-			struct udphdr *udp_hdr = (struct udphdr*)&(p[packet_index].buf[sizeof(struct ip)]);
+			struct udphdr *udp_hdr = (struct udphdr*)p[packet_index].udp;
 			sport = ntohs(udp_hdr->uh_sport);
 			dport = ntohs(udp_hdr->uh_dport);
 		} else if (ip_hdr->ip_p == 6) {
-			struct tcphdr *tcp_hdr = (struct tcphdr*)&(p[packet_index].buf[sizeof(struct ip)]);
+			struct tcphdr *tcp_hdr = (struct tcphdr*)p[packet_index].udp; // FIXME
 			sport = ntohs(tcp_hdr->th_sport);
 			dport = ntohs(tcp_hdr->th_dport);
 		} else {

@@ -36,6 +36,7 @@
 
 __global__ void process_packets(packet *p, int *results, int num_packets, int block_size);
 void setup();
+void teardown();
 void process_packets_sequential(packet *p, int *results, int num_packets);
 void setup_sequential();
 
