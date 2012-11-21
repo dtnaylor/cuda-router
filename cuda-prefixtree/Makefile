@@ -74,7 +74,7 @@ NVCC            ?= $(CUDA_BIN_PATH)/nvcc
 GCC             ?= g++
 
 # Extra user flags
-EXTRA_NVCCFLAGS ?= -DUSEDEBUG
+EXTRA_NVCCFLAGS ?= 
 EXTRA_LDFLAGS   ?=
 
 # CUDA code generation flags
@@ -146,4 +146,4 @@ run: build
 	./tree
 
 clean:
-	rm -f tree cuda-lookup.o tree.o mymalloc.o
+	rm -f tree cuda-lookup.o tree.o mymalloc.o main.o

@@ -24,10 +24,14 @@ __device__ __constant__ int d_serializedtree_size;
 struct lpm_serializedtree sTree;
 char *d_serializedtree = NULL;
 
+#define D_HTONL(n) (((((unsigned long)(n) & 0xFF)) << 24) | \
+((((unsigned long)(n) & 0xFF00)) << 8) | \
+((((unsigned long)(n) & 0xFF0000)) >> 8) | \
+((((unsigned long)(n) & 0xFF000000)) >> 24))
 
 /**
  * A CUDA kernel to be executed on the GPU.
- * 
+ *
  * Fills in the results array with the outbound port for each packet
  */
 __global__ void
@@ -35,9 +39,64 @@ process_packets(packet *p, int *results, int num_packets, int block_size)
 {
 	int packet_index = blockIdx.x * block_size + threadIdx.x;
     
-	struct ip *ip_hdr = (struct ip*)p[packet_index].ip;
+    if(packet_index >= num_packets)
+        return;
+    
+    struct ip *ip_hdr = (struct ip*)p[packet_index].ip;
     int *ret = &(results[packet_index]);
+    
     uint32_t ip_addr = *((uint32_t*)&ip_hdr->ip_dst);
+    ip_addr = D_HTONL(ip_addr);
+    
+    struct internal_node* n = (struct internal_node*)((char*)dd_serializedtree + ((struct lpm_tree*)dd_serializedtree)->h_offset);
+    
+    *ret = 0;
+    uint32_t b = MAX_BITS;
+    struct internal_node* next = n;
+    
+    do {
+        n = next;
+        b--;
+        //parent = (struct internal_node*)n;
+        //uint32_t v_bit = ilun->ip & ((uint32_t)pow((double)2, (double)b));
+        uint32_t v_bit = ip_addr & ((uint32_t)1 << b);
+        
+        /* If we've found an internal node, determine which
+         direction to descend. */
+        if (v_bit) {
+            //next = n->r;
+            next = (struct internal_node*)((char*)n + n->r_offset);
+        }
+        else {
+            //next = n->l;
+            next = (struct internal_node*)((char*)n + n->l_offset);
+        }
+        
+        if (n->type == DAT_NODE) {
+            struct data_node* node = (struct data_node*)n;
+            
+            
+            uint32_t mask = 0xFFFFFFFF;
+            
+            //mask = mask - ((uint32_t)pow((double)2, (double)(32 - node->netmask)) - 1);
+            mask = mask - (((uint32_t)1 << (32 - node->netmask)) - 1);
+            
+            if ((ip_addr & mask) == node->prefix) {
+                *ret = node->port;
+                //iterations *=100;
+            }
+            else {
+                //iterations *=10;
+                break;
+            }
+        }
+        else {
+            //if(next==n) ilun->port = 0;
+        }
+        
+    } while (next != n); //termination when offset is 0 and they are equal
+    
+    
 }
 
 
@@ -54,7 +113,6 @@ void _setup_trie() {
     
     //build_serializedtree(input);
     
-    int insertions;
     int ret;
     
     DEBUG("Create tree (size of pointer=%d, sizeof char=%d)\n", (int)sizeof(tree), (int)sizeof(char));
@@ -63,7 +121,6 @@ void _setup_trie() {
     
     /* Read in all prefixes. */
 	in = fopen(input, "r");
-    insertions = 0;
 	while (1) {
 		char ip_string[40]; /* Longest v6 string */
 		int mask;
@@ -99,7 +156,6 @@ void _setup_trie() {
                 continue;
             
         }
-        DEBUG("Inserted %d prefixes\n", ++insertions);
 	}
 	fclose(in);
         
@@ -146,7 +202,9 @@ void process_packets_sequential(packet *p, int *results, int num_packets)
         
         struct ip *ip_hdr = (struct ip*)p[packet_index].ip;
         int *ret = &(results[packet_index]);
+        
         uint32_t ip_addr = *((uint32_t*)&ip_hdr->ip_dst);
+        ip_addr = HTONL(ip_addr);
 
         struct internal_node* n = (struct internal_node*)((char*)sTree.serialized_tree + ((struct lpm_tree*)sTree.serialized_tree)->h_offset);
         
@@ -197,16 +255,12 @@ void process_packets_sequential(packet *p, int *results, int num_packets)
         } while (next != n); //termination when offset is 0 and they are equal
         //} while (next != NULL);
         
+        DEBUG("packet %d (addr %s) port %d\n", packet_index, inet_ntoa(ip_hdr->ip_dst/* *((struct in_addr*)& (HTONL(ip_addr)))*/), results[packet_index]);
+
+        
         packet_index++;
     }
     DEBUG("packets looked-up\n");
-#ifdef USEDEBUG
-    for(packet_index=0; packet_index<num_packets; packet_index++) {
-        DEBUG("packet %d port %d\n", packet_index, results[packet_index]);
-    }
-    DEBUG("results printed out\n");
-#endif
-
 }
 
 
@@ -217,6 +271,44 @@ void process_packets_sequential(packet *p, int *results, int num_packets)
 void setup_sequential()
 {
     _setup_trie();
+    
+//    char *ipaddr = "198.168.1.45";
+//    uint32_t tmp, tmp2, tmp3, tmp4, tmp5;
+//    inet_pton(AF_INET, ipaddr, &tmp);
+//    inet_aton(ipaddr, (struct in_addr *)&tmp2);
+//    packet pkt;
+//    int results;
+//    struct ip *ip_hdr = (struct ip*)pkt.ip;
+//
+//    ip_hdr->ip_dst = *((struct in_addr*) &tmp);
+//    process_packets_sequential(&pkt, &results, 1);
+//    printf("res: %d\n", results);
+//    
+//    ip_hdr->ip_dst = *((struct in_addr*) &tmp2);
+//    process_packets_sequential(&pkt, &results, 1);
+//    printf("res: %d\n", results);
+//    
+//    tmp3 = ntohl(tmp);
+//    ip_hdr->ip_dst = *((struct in_addr*) &tmp3);
+//    process_packets_sequential(&pkt, &results, 1);
+//    printf("res: %d\n", results);
+//    
+//    tmp4 = ntohl(tmp2);
+//    ip_hdr->ip_dst = *((struct in_addr*) &tmp4);
+//    process_packets_sequential(&pkt, &results, 1);
+//    printf("res: %d\n", results);
+//    
+//    tmp5 = HTONL(tmp4);
+//    if(tmp5==tmp2)
+//        printf("tmp5 equals tmp2");
+//    else
+//        printf("tmp5 NOT equals tmp2");
+//    
+//    if(tmp3==tmp4)
+//        printf("tmp3 equals tmp4");
+//    else
+//        printf("tmp3 NOT equals tmp4");
+    
 }
 
 
