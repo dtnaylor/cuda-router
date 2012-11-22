@@ -1,0 +1,38 @@
+1)  RUNNING EXPERIMENTS
+
+Run an experiment by running one of my scripts in the scripts directory. To
+make your own experiment script, you must be sure to print a line such as the
+following right before each invocation of router:
+
+[CPU|GPU] <FEATURE BEING VARIED> <VALUE FOR THIS RUN>
+
+For example, if the feature I'm testing is the effect of Batch Size, one
+invocation of the GPU version of router with a batch size of 1024 would look
+like this:
+
+echo -e "\n\nGPU BATCH 1024"
+$ROUTER_DIR/router -runtime=$RUNTIME -batch=1024
+
+
+When you run the experiment, I suggest sending the output to a file so it can
+be saved and used for generating plots later:
+
+./batch_size.sh > ../data/batch_size.output
+
+
+
+2) PLOTTING RESULTS
+
+Switch to the plots directory. Generating a plot takes two steps: first, run
+the prepare_data.py script to process a raw output file into a data file that
+gnuplot can use. This script takes 2 arguments: 1) the name of the feature
+being varied and 2) the path to the output file. For example:
+
+python prepare_data.py BATCH ../data/batch_size.output
+
+Now you can run the plot.sh script to actually generate plots. This script
+takes 3 arguments: 1) The name of the independent variable, 2) the type of unit
+in which the independent variable is measured, and 3) the path to the data
+file. For example:
+
+./plot.sh 'Batch Size' packets ../data/batch_size.data
