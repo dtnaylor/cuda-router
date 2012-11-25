@@ -144,3 +144,4 @@ run: build
 
 clean:
 	rm -f router router.o firewall.o lpm_trie.o
+	cd ../packet-collector; make clean

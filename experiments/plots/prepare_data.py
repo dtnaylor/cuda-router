@@ -50,18 +50,30 @@ def main(argv):
         elif 'processing time' in line:
             arr = line.split(' ')
             stats[cur_mode][cur_ind_var_val]['proc_time'] = float(arr[3])
+        elif 'get time' in line:
+            arr = line.split(' ')
+            stats[cur_mode][cur_ind_var_val]['get_time'] = float(arr[4])
+        elif 'send time' in line:
+            arr = line.split(' ')
+            stats[cur_mode][cur_ind_var_val]['send_time'] = float(arr[4])
+        elif 'copy to device time' in line:
+            arr = line.split(' ')
+            stats[cur_mode][cur_ind_var_val]['copy_to_device_time'] = float(arr[6])
+        elif 'copy from device time' in line:
+            arr = line.split(' ')
+            stats[cur_mode][cur_ind_var_val]['copy_from_device_time'] = float(arr[6])
         elif 'latency' in line:
             arr = line.split(' ')
             stats[cur_mode][cur_ind_var_val]['max_latency'] = float(arr[3])/1000
             stats[cur_mode][cur_ind_var_val]['min_latency'] = float(arr[6])/1000
 
     with open(outfile, 'w') as f:
-        headers = 'val\tgpu_bw\tgpu_max_lat\tgpu_min_lat\tgpu_proc_time\tcpu_bw\tcpu_max_lat\tcpu_min_lat\tcpu_proc_time\n'
+        headers = 'val\tgpu_bw\tgpu_max_lat\tgpu_min_lat\tgpu_proc_time\tcpu_bw\tcpu_max_lat\tcpu_min_lat\tcpu_proc_time\tgpu_get_time\tgpu_send_time\tgpu_copy_to_time\tgpu_copy_from_time\tcpu_get_time\tcpu_send_time\n'
         f.write(headers)
         for val in ind_var_vals:
             gpu = stats['GPU'][val]
             cpu = stats['CPU'][val]
-            line = '%i\t%f\t%f\t%f\t%f\t%f\t%f\t%f\t%f\n' % (val, gpu['bw'], gpu['max_latency'], gpu['min_latency'], gpu['proc_time'], cpu['bw'], cpu['max_latency'], cpu['min_latency'], cpu['proc_time'])
+            line = '%i\t%f\t%f\t%f\t%f\t%f\t%f\t%f\t%f\t%f\t%f\t%f\t%f\t%f\t%f\n' % (val, gpu['bw'], gpu['max_latency'], gpu['min_latency'], gpu['proc_time'], cpu['bw'], cpu['max_latency'], cpu['min_latency'], cpu['proc_time'], gpu['get_time'], gpu['send_time'], gpu['copy_to_device_time'], gpu['copy_from_device_time'], cpu['get_time'], cpu['send_time'])
             f.write(line)
     f.closed
 

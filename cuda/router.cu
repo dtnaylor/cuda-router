@@ -2,7 +2,7 @@
 
 #define MEASURE_LATENCY
 #define MEASURE_BANDWIDTH
-#define MEASURE_PROCESSING_MICROBENCHMARK
+#define MEASURE_MICROBENCHMARKS
 
 #define DEFAULT_BLOCK_SIZE 32
 
@@ -85,10 +85,17 @@ int run(int argc, char **argv, int block_size, int server_sockfd, udpc client)
   	}
 
 	// Allocate host memory for 2 arrays of results
-	int *h_results1 = (int*)malloc(results_size);
+	int *h_results1, *h_results2;
+#ifdef PINNED_MEMORY
+	unsigned int flags = cudaHostAllocMapped;
+	check_error(cudaHostAlloc((void**)&h_results1, results_size, flags), "hostAlloc h_results1", __LINE__);
+	check_error(cudaHostAlloc((void**)&h_results2, results_size, flags), "hostAlloc h_results2", __LINE__);
+#else
+	h_results1 = (int*)malloc(results_size);
 	check_malloc(h_results1, "h_results1", __LINE__);
-	int *h_results2 = (int*)malloc(results_size);
+	h_results2 = (int*)malloc(results_size);
 	check_malloc(h_results2, "h_results2", __LINE__);
+#endif /* PINNED_MEMORY */
 
 	// Allocate device memory for up to batch_size packets
 	// TODO: wait and allocate only the amount needed after we receive?
@@ -97,10 +104,14 @@ int run(int argc, char **argv, int block_size, int server_sockfd, udpc client)
 	packet *d_p2;
 	check_error(cudaMalloc((void **) &d_p2, buf_size), "cudaMalloc d_p2", __LINE__);
 	// Allocate device memory for results
-	int *d_results1;
+	int *d_results1, *d_results2;
+#ifdef PINNED_MEMORY
+	check_error(cudaHostGetDevicePointer((void **)&d_results1, (void *)h_results1, 0), "cudaGetDevicePointer", __LINE__);
+	check_error(cudaHostGetDevicePointer((void **)&d_results2, (void *)h_results2, 0), "cudaGetDevicePointer", __LINE__);
+#else
 	check_error(cudaMalloc((void **) &d_results1, results_size), "cudaMalloc d_results1", __LINE__);
-	int *d_results2;
 	check_error(cudaMalloc((void **) &d_results2, results_size), "cudaMalloc d_results2", __LINE__);
+#endif /* PINNED_MEMORY */
 
 
 	// Setup execution parameters
@@ -116,17 +127,26 @@ int run(int argc, char **argv, int block_size, int server_sockfd, udpc client)
 	setup();
    
 
-#ifdef MEASURE_PROCESSING_MICROBENCHMARK
+#ifdef MEASURE_MICROBENCHMARKS
 	// Allocate CUDA events that we'll use for timing
-	cudaEvent_t start;
+	cudaEvent_t start, stop;
 	check_error(cudaEventCreate(&start), "Create start event", __LINE__);
-
-	cudaEvent_t stop;
 	check_error(cudaEventCreate(&stop), "Create stop event", __LINE__);
 
-	double avg_micro = 0;
-	int micro_nIters = 0;
-#endif /* MEASURE_PROCESSING_MICROBENCHMARK */
+	// Allocate regular timevals
+	struct timeval micro_get_start, micro_get_stop, micro_send_start, micro_send_stop, micro_copy_to_start, micro_copy_to_stop, micro_copy_from_start, micro_copy_from_stop;
+
+	double avg_micro_proc = 0;
+	double avg_micro_get = 0;
+	double avg_micro_send = 0;
+	double avg_micro_copy_to = 0;
+	double avg_micro_copy_from = 0;
+	int micro_nIters_proc = 0;
+	int micro_nIters_get = 0;
+	int micro_nIters_send = 0;
+	int micro_nIters_copy_to = 0;
+	int micro_nIters_copy_from = 0;
+#endif /* MEASURE_MICROBENCHMARKS */
 
 #ifdef MEASURE_BANDWIDTH
 	long packets_processed = 0;
@@ -169,19 +189,19 @@ int run(int argc, char **argv, int block_size, int server_sockfd, udpc client)
 		 *************************************************************/
 		if (data_ready) { // First execution of loop: data_ready = false
 
-#ifdef MEASURE_PROCESSING_MICROBENCHMARK
+#ifdef MEASURE_MICROBENCHMARKS
 			// Record the start event
 			check_error(cudaEventRecord(start, NULL), "Record start event", __LINE__);
-#endif /* MEASURE_PROCESSING_MICROBENCHMARK */
+#endif /* MEASURE_MICROBENCHMARKS */
 
 			// Execute the kernel
 			PRINT(V_DEBUG, "vvvvv   Begin processing %d packets   vvvvv\n\n", num_packets_current);
 			process_packets<<< blocks_in_grid, threads_in_block >>>(d_p_current, d_results_current, num_packets_current, block_size);
 
-#ifdef MEASURE_PROCESSING_MICROBENCHMARK
+#ifdef MEASURE_MICROBENCHMARKS
 			// Record the stop event
 			check_error(cudaEventRecord(stop, NULL), "Record stop event", __LINE__);
-#endif /*MEASURE_PROCESSING_MICROBENCHMARK*/
+#endif /*MEASURE_MICROBENCHMARKS*/
 
 
 #ifdef MEASURE_BANDWIDTH
@@ -205,10 +225,31 @@ int run(int argc, char **argv, int block_size, int server_sockfd, udpc client)
 			// the kernel call we made above.
 
 			// Copy the last set of results back from the GPU
+#ifdef MEASURE_MICROBENCHMARKS
+			gettimeofday(&micro_copy_from_start, NULL);
+#endif /* MEASURE_MICROBENCHMARKS */
+
+#ifndef PINNED_MEMORY
 			check_error(cudaMemcpy(h_results_previous, d_results_previous, results_size, cudaMemcpyDeviceToHost), "cudaMemcpy (h_results, d_results)", __LINE__);
+#endif /* PINNED_MEMORY */
+
+#ifdef MEASURE_MICROBENCHMARKS
+			gettimeofday(&micro_copy_from_stop, NULL);
+			avg_micro_copy_from += (micro_copy_from_stop.tv_sec - micro_copy_from_start.tv_sec) * 1000000.0 + (micro_copy_from_stop.tv_usec - micro_copy_from_start.tv_usec);
+			micro_nIters_copy_from++;
+#endif /* MEASURE_MICROBENCHMARKS */
+
 
 			// Forward packets (right now, h_p_next still holds the *previous* batch)
+#ifdef MEASURE_MICROBENCHMARKS
+			gettimeofday(&micro_send_start, NULL);
+#endif /* MEASURE_MICROBENCHMARKS */
 			send_packets(client, h_p_next, num_packets_next, h_results_previous);
+#ifdef MEASURE_MICROBENCHMARKS
+			gettimeofday(&micro_send_stop, NULL);
+			avg_micro_send += (micro_send_stop.tv_sec - micro_send_start.tv_sec) * 1000000.0 + (micro_send_stop.tv_usec - micro_send_start.tv_usec);
+			micro_nIters_send++;
+#endif /* MEASURE_MICROBENCHMARKS */
 
 #ifdef MEASURE_LATENCY
 			gettimeofday(&lat_stop, NULL);
@@ -245,28 +286,47 @@ int run(int argc, char **argv, int block_size, int server_sockfd, udpc client)
 		// (not perfect if the first packet doesn't arrive immediately)
 		gettimeofday(lat_start_oldest_next, NULL);
 #endif /* MEASURE_LATENCY */
+
+#ifdef MEASURE_MICROBENCHMARKS
+		gettimeofday(&micro_get_start, NULL);
+#endif /* MEASURE_MICROBENCHMARKS */
 		num_packets_next = 0;
 		while (num_packets_next == 0 && do_run()) {
 			num_packets_next = get_packets(server_sockfd, h_p_next);
 		}
+#ifdef MEASURE_MICROBENCHMARKS
+		gettimeofday(&micro_get_stop, NULL);
+		avg_micro_get += (micro_get_stop.tv_sec - micro_get_start.tv_sec) * 1000000.0 + (micro_get_stop.tv_usec - micro_get_start.tv_usec);
+		micro_nIters_get++;
+#endif /* MEASURE_MICROBENCHMARKS */
+
 #ifdef MEASURE_LATENCY
 		gettimeofday(lat_start_newest_next, NULL);
 #endif /* MEASURE_LATENCY */
+
+#ifdef MEASURE_MICROBENCHMARKS
+		gettimeofday(&micro_copy_to_start, NULL);
+#endif /* MEASURE_MICROBENCHMARKS */
 		check_error(cudaMemcpy(d_p_next, h_p_next, buf_size, cudaMemcpyHostToDevice), "cudaMemcpy (d_p_next, h_p_next)", __LINE__);
+#ifdef MEASURE_MICROBENCHMARKS
+		gettimeofday(&micro_copy_to_stop, NULL);
+		avg_micro_copy_to += (micro_copy_to_stop.tv_sec - micro_copy_to_start.tv_sec) * 1000000.0 + (micro_copy_to_stop.tv_usec - micro_copy_to_start.tv_usec);
+		micro_nIters_copy_to++;
+#endif /* MEASURE_MICROBENCHMARKS */
 
 
 
 		if (data_ready) {
 
-#ifdef MEASURE_PROCESSING_MICROBENCHMARK
+#ifdef MEASURE_MICROBENCHMARKS
 			// Wait for the stop event to complete (which waits for the kernel to finish)
 			check_error(cudaEventSynchronize(stop), "Failed to synchronize stop event", __LINE__);
 			
 			float msecTotal = 0.0f;
 			check_error(cudaEventElapsedTime(&msecTotal, start, stop), "Getting time elapsed b/w events", __LINE__);
 
-			micro_nIters++;
-			avg_micro += msecTotal;
+			micro_nIters_proc++;
+			avg_micro_proc += msecTotal;
 
 			// Compute and print the performance
 			PRINT(V_DEBUG_TIMING,
@@ -276,7 +336,7 @@ int run(int argc, char **argv, int block_size, int server_sockfd, udpc client)
 #else
 			// Wait for kernel execution to complete
 			check_error(cudaDeviceSynchronize(), "cudaDeviceSynchronize", __LINE__);
-#endif /* MEASURE_PROCESSING_MICROBENCHMARK */
+#endif /* MEASURE_MICROBENCHMARKS */
 
 
 			PRINT(V_DEBUG, "^^^^^   Done processing batch   ^^^^^\n\n\n");
@@ -308,13 +368,22 @@ int run(int argc, char **argv, int block_size, int server_sockfd, udpc client)
 	double total_time = (bw_stop.tv_sec - bw_start.tv_sec) + (bw_stop.tv_usec - bw_start.tv_usec) / 1000000.0;
 	double pkts_per_sec = double(packets_processed) / total_time;	
 
-	PRINT(V_INFO, "Bandwidth: %f packets per second  (64B pkts ==> %f Gbps)\n", pkts_per_sec, pkts_per_sec * 64.0 / 1000000.0);
+	PRINT(V_INFO, "Bandwidth: %f packets per second  (64B pkts ==> %f Gbps)\n\n", pkts_per_sec, pkts_per_sec * 64.0 / 1000000.0);
 #endif /* MEASURE_BANDWIDTH */
 
-#ifdef MEASURE_PROCESSING_MICROBENCHMARK
-	avg_micro /= micro_nIters;
-	PRINT(V_INFO, "Average processing time: %f msec\n", avg_micro);
-#endif /* MEASURE_PROCESSING_MICROBENCHMARK */
+#ifdef MEASURE_MICROBENCHMARKS
+	avg_micro_proc /= micro_nIters_proc;
+	avg_micro_get /= micro_nIters_get;
+	avg_micro_send /= micro_nIters_send;
+	avg_micro_copy_to /= micro_nIters_copy_to;
+	avg_micro_copy_from /= micro_nIters_copy_from;
+
+	PRINT(V_INFO, "Average processing time: %f msec\n", avg_micro_proc);
+	PRINT(V_INFO, "Average packet get time: %f msec\n", avg_micro_get);
+	PRINT(V_INFO, "Average packet send time: %f msec\n", avg_micro_send);
+	PRINT(V_INFO, "Average packet copy to device time: %f msec\n", avg_micro_copy_to);
+	PRINT(V_INFO, "Average packet copy from device time: %f msec\n\n", avg_micro_copy_from);
+#endif /* MEASURE_MICROBENCHMARKS */
 
 #ifdef MEASURE_LATENCY
 	avg_min_latency /= lat_nIters;
@@ -328,12 +397,17 @@ int run(int argc, char **argv, int block_size, int server_sockfd, udpc client)
 	// Clean up memory
 	free(h_p1);
 	free(h_p2);
-	free(h_results1);
-	free(h_results2);
 	cudaFree(d_p1);
 	cudaFree(d_p2);
+#ifdef PINNED_MEMORY
+	check_error(cudaFreeHost(h_results1), "cudaFreeHost", __LINE__);
+	check_error(cudaFreeHost(h_results2), "cudaFreeHost", __LINE__);
+#else
+	free(h_results1);
+	free(h_results2);
 	cudaFree(d_results1);
 	cudaFree(d_results2);
+#endif /* PINNED_MEMORY */
 
 	teardown();
 
@@ -391,11 +465,15 @@ int run_sequential(int argc, char **argv, int server_sockfd, udpc client)
 	setup_sequential();
 
 
-#ifdef MEASURE_PROCESSING_MICROBENCHMARK
-	struct timeval micro_start, micro_stop;
-	double avg_micro = 0;
-	int micro_nIters = 0;
-#endif /* MEASURE_PROCESSING_MICROBENCHMARK */
+#ifdef MEASURE_MICROBENCHMARKS
+	struct timeval micro_proc_start, micro_proc_stop, micro_get_start, micro_get_stop, micro_send_start, micro_send_stop;
+	double avg_micro_proc = 0;
+	double avg_micro_get = 0;
+	double avg_micro_send = 0;
+	int micro_nIters_proc = 0;
+	int micro_nIters_get = 0;
+	int micro_nIters_send = 0;
+#endif /* MEASURE_MICROBENCHMARKS */
 
 #ifdef MEASURE_BANDWIDTH
 	long packets_processed = 0;
@@ -420,10 +498,20 @@ int run_sequential(int argc, char **argv, int server_sockfd, udpc client)
 #ifdef MEASURE_LATENCY
 		gettimeofday(&lat_start_oldest, NULL);
 #endif /* MEASURE_LATENCY */
+
+#ifdef MEASURE_MICROBENCHMARKS
+		gettimeofday(&micro_get_start, NULL);
+#endif /* MEASURE_MICROBENCHMARKS */
 		num_packets = 0;
 		while (num_packets == 0 && do_run()) {
 			num_packets = get_packets(server_sockfd, p);
 		}
+#ifdef MEASURE_MICROBENCHMARKS
+		gettimeofday(&micro_get_stop, NULL);
+		avg_micro_get += (micro_get_stop.tv_sec - micro_get_start.tv_sec) * 1000000.0 + (micro_get_stop.tv_usec - micro_get_start.tv_usec);
+		micro_nIters_get++;
+#endif /* MEASURE_MICROBENCHMARKS */
+
 #ifdef MEASURE_LATENCY
 		gettimeofday(&lat_start_newest, NULL);
 #endif /* MEASURE_LATENCY */
@@ -432,25 +520,33 @@ int run_sequential(int argc, char **argv, int server_sockfd, udpc client)
 
 		// Process the batch
 
-#ifdef MEASURE_PROCESSING_MICROBENCHMARK
-		gettimeofday(&micro_start, NULL);
-#endif /* MEASURE_PROCESSING_MICROBENCHMARK */
+#ifdef MEASURE_MICROBENCHMARKS
+		gettimeofday(&micro_proc_start, NULL);
+#endif /* MEASURE_MICROBENCHMARKS */
 
 		PRINT(V_DEBUG, "Processing %d packets\n\n", num_packets);
 		process_packets_sequential(p, results, num_packets);
 
-#ifdef MEASURE_PROCESSING_MICROBENCHMARK
-		gettimeofday(&micro_stop, NULL);
-		double total_time = (micro_stop.tv_sec - micro_start.tv_sec) * 1000000.0 + (micro_stop.tv_usec - micro_start.tv_usec);
+#ifdef MEASURE_MICROBENCHMARKS
+		gettimeofday(&micro_proc_stop, NULL);
+		double total_time = (micro_proc_stop.tv_sec - micro_proc_start.tv_sec) * 1000000.0 + (micro_proc_stop.tv_usec - micro_proc_start.tv_usec);
 
-		micro_nIters++;
-		avg_micro += total_time;
+		micro_nIters_proc++;
+		avg_micro_proc += total_time;
 
 		PRINT(V_DEBUG_TIMING, "Performance: %f msec\n", total_time);
-#endif /*MEASURE_PROCESSING_MICROBENCHMARK*/
+#endif /*MEASURE_MICROBENCHMARKS*/
 
 		// Return the batch of packets to click for forwarding
+#ifdef MEASURE_MICROBENCHMARKS
+		gettimeofday(&micro_send_start, NULL);
+#endif /* MEASURE_MICROBENCHMARKS */
 		send_packets(client, p, num_packets, results);
+#ifdef MEASURE_MICROBENCHMARKS
+		gettimeofday(&micro_send_stop, NULL);
+		avg_micro_send += (micro_send_stop.tv_sec - micro_send_start.tv_sec) * 1000000.0 + (micro_send_stop.tv_usec - micro_send_start.tv_usec);
+		micro_nIters_send++;
+#endif /* MEASURE_MICROBENCHMARKS */
 
 #ifdef MEASURE_LATENCY
 		gettimeofday(&lat_stop, NULL);
@@ -484,13 +580,18 @@ int run_sequential(int argc, char **argv, int server_sockfd, udpc client)
 	double total_time = (bw_stop.tv_sec - bw_start.tv_sec) + (bw_stop.tv_usec - bw_start.tv_usec) / 1000000.0;
 	double pkts_per_sec = double(packets_processed) / total_time;	
 
-	PRINT(V_INFO, "Bandwidth: %f packets per second  (64B pkts ==> %f Gbps)\n", pkts_per_sec, pkts_per_sec * 64.0 / 1000000.0);
+	PRINT(V_INFO, "Bandwidth: %f packets per second  (64B pkts ==> %f Gbps)\n\n", pkts_per_sec, pkts_per_sec * 64.0 / 1000000.0);
 #endif /* MEASURE_BANDWIDTH */
 
-#ifdef MEASURE_PROCESSING_MICROBENCHMARK
-	avg_micro /= micro_nIters;
-	PRINT(V_INFO, "Average processing time: %f msec\n", avg_micro);
-#endif /* MEASURE_PROCESSING_MICROBENCHMARK */
+#ifdef MEASURE_MICROBENCHMARKS
+	avg_micro_proc /= micro_nIters_proc;
+	avg_micro_get /= micro_nIters_get;
+	avg_micro_send /= micro_nIters_send;
+
+	PRINT(V_INFO, "Average processing time: %f msec\n", avg_micro_proc);
+	PRINT(V_INFO, "Average packet get time: %f msec\n", avg_micro_get);
+	PRINT(V_INFO, "Average packet send time: %f msec\n\n", avg_micro_send);
+#endif /* MEASURE_MICROBENCHMARKS */
 
 #ifdef MEASURE_LATENCY
 	avg_max_latency /= lat_nIters;

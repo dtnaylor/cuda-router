@@ -23,10 +23,15 @@
 #define RESULT_FORWARD -3
 #define RESULT_UNSET -4
 
+#define HEADER_ONLY
+
 
 typedef struct _packet {
   char ip[IP_HEADER_SIZE];
   char udp[UDP_HEADER_SIZE];
+#ifndef HEADER_ONLY
+  char empty[BUF_SIZE - IP_HEADER_SIZE - UDP_HEADER_SIZE - sizeof(char*)];
+#endif /* HEADER_ONLY */
   int size;
   char *payload;
 } packet;

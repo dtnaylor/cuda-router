@@ -15,7 +15,7 @@
 
 # Plot speedup vs nprocs
 gnuplot <<EOC 
-set terminal postscript
+set terminal postscript color
 set output "$1.ps"
 set xlabel "$1 ($2)"
 set ylabel "Bandwidth (Gbps)"
@@ -31,4 +31,47 @@ set xlabel "$1 ($2)"
 set ylabel "Processing Time (us)"
 set title "Processing Time vs. $1"
 plot "$3" using 1:5 title "GPU" with linespoints, "$3" using 1:9 title "CPU" with linespoints
+
+set style data histograms
+set style histogram rowstacked
+set boxwidth 1 relative
+set style fill pattern 1.0 border -1
+set key top left
+set ylabel "Time (us)"
+set title "GPU Time Breakdown vs. $1"
+plot "$3" using 10 t "Gather Packets", '' using 12 t "Copy to Device", '' using 5 t "Process", '' using 13 t "Copy from Device", '' using 11:xticlabels(1) t "Send Packets"
+
+set style data histograms
+set style histogram rowstacked
+set boxwidth 1 relative
+set style fill pattern 1.0 border -1
+set key top left
+set ylabel "% Time"
+set title "GPU % Time Breakdown vs. $1"
+plot "$3" using (100*\$10/(\$10+\$12+\$5+\$13+\$11)) t "Gather Packets"\
+	, '' using (100*\$12/(\$10+\$12+\$5+\$13+\$11)) t "Copy to Device"\
+	, '' using (100*\$5/(\$10+\$12+\$5+\$13+\$11)) t "Process"\
+	, '' using (100*\$13/(\$10+\$12+\$5+\$13+\$11)) t "Copy from Device"\
+	, '' using (100*\$11/(\$10+\$12+\$5+\$13+\$11)):xticlabels(1) t "Send Packets"
+
+set style data histograms
+set style histogram rowstacked
+set boxwidth 1 relative
+set style fill pattern 1.0 border -1
+set key top left
+set ylabel "Time (us)"
+set title "CPU Time Breakdown vs. $1"
+plot "$3" using 14 t "Gather Packets", '' using 9 t "Process", '' using 15:xticlabels(1) t "Send Packets"
+
+set style data histograms
+set style histogram rowstacked
+set boxwidth 1 relative
+set style fill pattern 1.0 border -1
+set key top left
+set ylabel "% Time"
+set title "CPU % Time Breakdown vs. $1"
+plot "$3" using (100*\$14/(\$14+\$9+\$15)) t "Gather Packets"\
+	, '' using (100*\$9/(\$14+\$9+\$15)) t "Process"\
+	, '' using (100*\$15/(\$14+\$9+\$15)):xticlabels(1) t "Send Packets"
+
 EOC

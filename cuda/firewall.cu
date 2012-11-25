@@ -179,7 +179,7 @@ void generate_rules(int num_rules, rule* rules)
 	rules[0].dst_ip = 0;
 	rules[0].src_port = 0;
 	rules[0].dst_port = 0;
-	rules[0].proto = 18;
+	rules[0].proto = 17;
 	rules[0].action = RESULT_DROP;*/
 
 }
