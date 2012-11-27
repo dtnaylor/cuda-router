@@ -24,7 +24,7 @@
 #define RESULT_UNSET -4
 
 #define HEADER_ONLY
-
+#define RETURN_PACKETS_IMMEDIATELY
 
 typedef struct _packet {
   char ip[IP_HEADER_SIZE];

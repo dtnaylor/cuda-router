@@ -73,7 +73,21 @@ void *timer(void *data) {
   return 0;
 }
 
+
+#ifdef RETURN_PACKETS_IMMEDIATELY
+
+packet random_buf[DEFAULT_BATCH_SIZE];
+
+#endif
+
 int get_packets(int sockfd, packet* p) {
+#ifdef RETURN_PACKETS_IMMEDIATELY
+
+  memcpy(p, random_buf, sizeof(packet)*DEFAULT_BATCH_SIZE);
+  return DEFAULT_BATCH_SIZE;
+
+#endif
+
   int timeout = 0;
   pthread_t thread;
 
@@ -112,6 +126,17 @@ int send_packets(udpc client, packet* p, int num_packets, int* a) {
 
 #ifndef CUDA_CODE
 int main() {	
+  #ifdef RETURN_PACKETS_IMMEDIATELY
+
+  for(int i = 0; i < DEFAULT_BATCH_SIZE; i++) {
+    for(int j = 0; j < IP_HEADER_SIZE; j++) random_buf[i].ip[j] = (char)rand();
+    for(int j = 0; j < UDP_HEADER_SIZE; j++) random_buf[i].udp[j] = (char)rand();
+    random_buf[i].payload = (char *)malloc(BUF_SIZE*sizeof(char));
+    for(int j = 0; j < BUF_SIZE; j++) random_buf[i].payload[j] = (char)rand();
+  }
+
+  #endif
+
   int server_sockfd = init_server_socket();
   if(server_sockfd == -1) {
     return -1;
@@ -132,6 +157,7 @@ int main() {
 
   while(1) {
     int num_packets = get_packets(server_sockfd, p);
+    printf("num_packets = %d\n", num_packets);
     send_packets(client, p, num_packets, a);
   }
 }
