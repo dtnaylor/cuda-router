@@ -1,0 +1,280 @@
+
+
+GPU BATCH 32
+Running CPU/GPU code
+
+GPU Device 0: "GeForce GT 650M" with compute capability 3.0
+
+Bandwidth: 28273.513979 packets per second  (64B pkts ==> 1.809505 Gbps)
+
+Average processing time: 0.486478 msec
+Average packet get time: 17564.377063 msec
+Average packet send time: 1.478677 msec
+Average packet copy to device time: 56.069505 msec
+Average packet copy from device time: 61.727589 msec
+
+Average latency: Max: 18103.364665 msec, Min: 527.003481 msec
+
+
+GPU BATCH 64
+Running CPU/GPU code
+
+GPU Device 0: "GeForce GT 650M" with compute capability 3.0
+
+Bandwidth: 54405.855216 packets per second  (64B pkts ==> 3.481975 Gbps)
+
+Average processing time: 0.491145 msec
+Average packet get time: 18262.958596 msec
+Average packet send time: 1.610460 msec
+Average packet copy to device time: 59.072007 msec
+Average packet copy from device time: 62.082056 msec
+
+Average latency: Max: 18812.052299 msec, Min: 538.712353 msec
+
+
+GPU BATCH 128
+Running CPU/GPU code
+
+GPU Device 0: "GeForce GT 650M" with compute capability 3.0
+
+Bandwidth: 92126.410613 packets per second  (64B pkts ==> 5.896090 Gbps)
+
+Average processing time: 0.308957 msec
+Average packet get time: 21748.251860 msec
+Average packet send time: 1.184239 msec
+Average packet copy to device time: 79.775770 msec
+Average packet copy from device time: 72.523962 msec
+
+Average latency: Max: 22190.624068 msec, Min: 452.481363 msec
+
+
+GPU BATCH 256
+Running CPU/GPU code
+
+GPU Device 0: "GeForce GT 650M" with compute capability 3.0
+
+Bandwidth: 156101.237983 packets per second  (64B pkts ==> 9.990479 Gbps)
+
+Average processing time: 0.665880 msec
+Average packet get time: 25686.401506 msec
+Average packet send time: 2.550943 msec
+Average packet copy to device time: 90.420326 msec
+Average packet copy from device time: 69.825157 msec
+
+Average latency: Max: 26218.747170 msec, Min: 508.598742 msec
+
+
+GPU BATCH 512
+Running CPU/GPU code
+
+GPU Device 0: "GeForce GT 650M" with compute capability 3.0
+
+Bandwidth: 181833.820269 packets per second  (64B pkts ==> 11.637364 Gbps)
+
+Average processing time: 1.318862 msec
+Average packet get time: 44376.909677 msec
+Average packet send time: 11.384449 msec
+Average packet copy to device time: 103.492473 msec
+Average packet copy from device time: 62.064795 msec
+
+Average latency: Max: 44999.205184 msec, Min: 556.924406 msec
+
+
+GPU BATCH 1024
+Running CPU/GPU code
+
+GPU Device 0: "GeForce GT 650M" with compute capability 3.0
+
+Bandwidth: 177793.729677 packets per second  (64B pkts ==> 11.378799 Gbps)
+
+Average processing time: 2.413677 msec
+Average packet get time: 91120.785088 msec
+Average packet send time: 19.942478 msec
+Average packet copy to device time: 158.355263 msec
+Average packet copy from device time: 68.185841 msec
+
+Average latency: Max: 92034.141593 msec, Min: 584.309735 msec
+
+
+GPU BATCH 2048
+Running CPU/GPU code
+
+GPU Device 0: "GeForce GT 650M" with compute capability 3.0
+
+Bandwidth: 183168.014090 packets per second  (64B pkts ==> 11.722753 Gbps)
+
+Average processing time: 4.542409 msec
+Average packet get time: 175819.610169 msec
+Average packet send time: 62.362069 msec
+Average packet copy to device time: 1129.161017 msec
+Average packet copy from device time: 59.370690 msec
+
+Average latency: Max: 178785.431034 msec, Min: 1480.672414 msec
+
+
+GPU BATCH 4096
+Running CPU/GPU code
+
+GPU Device 0: "GeForce GT 650M" with compute capability 3.0
+
+Bandwidth: 181545.403258 packets per second  (64B pkts ==> 11.618906 Gbps)
+
+Average processing time: 6.398681 msec
+Average packet get time: 352698.406780 msec
+Average packet send time: 240.929825 msec
+Average packet copy to device time: 1494.661017 msec
+Average packet copy from device time: 61.964912 msec
+
+Average latency: Max: 359442.192982 msec, Min: 2002.842105 msec
+
+
+GPU BATCH 8192
+Running CPU/GPU code
+
+GPU Device 0: "GeForce GT 650M" with compute capability 3.0
+
+Bandwidth: 172293.437031 packets per second  (64B pkts ==> 11.026780 Gbps)
+
+Average processing time: 17.747411 msec
+Average packet get time: 723962.000000 msec
+Average packet send time: 1221.727273 msec
+Average packet copy to device time: 3312.750000 msec
+Average packet copy from device time: 70.681818 msec
+
+Average latency: Max: 738512.227273 msec, Min: 4855.318182 msec
+
+
+GPU BATCH 16384
+Running CPU/GPU code
+
+GPU Device 0: "GeForce GT 650M" with compute capability 3.0
+
+Bandwidth: 169469.269344 packets per second  (64B pkts ==> 10.846033 Gbps)
+
+Average processing time: 25.076294 msec
+Average packet get time: 1317302.714286 msec
+Average packet send time: 4377.600000 msec
+Average packet copy to device time: 4269.142857 msec
+Average packet copy from device time: 60.800000 msec
+
+Average latency: Max: 1437660.400000 msec, Min: 9013.200000 msec
+
+
+CPU BATCH 32
+Running sequential router code on CPU only
+
+Bandwidth: 27718.147327 packets per second  (64B pkts ==> 1.773961 Gbps)
+
+Average processing time: 11.992632 msec
+Average packet get time: 1141.881496 msec
+Average packet send time: 0.087078 msec
+
+Average latency: Max: 1154.224002 msec, Min: 12.233994
+
+
+CPU BATCH 64
+Running sequential router code on CPU only
+
+Bandwidth: 52636.551621 packets per second  (64B pkts ==> 3.368739 Gbps)
+
+Average processing time: 23.193940 msec
+Average packet get time: 1192.041156 msec
+Average packet send time: 0.071400 msec
+
+Average latency: Max: 1215.548964 msec, Min: 23.403611
+
+
+CPU BATCH 128
+Running sequential router code on CPU only
+
+Bandwidth: 97108.455216 packets per second  (64B pkts ==> 6.214941 Gbps)
+
+Average processing time: 45.392284 msec
+Average packet get time: 1271.914092 msec
+Average packet send time: 0.075776 msec
+
+Average latency: Max: 1317.610611 msec, Min: 45.597772
+
+
+CPU BATCH 256
+Running sequential router code on CPU only
+
+Bandwidth: 156203.625939 packets per second  (64B pkts ==> 9.997032 Gbps)
+
+Average processing time: 89.213565 msec
+Average packet get time: 1548.491825 msec
+Average packet send time: 0.080889 msec
+
+Average latency: Max: 1638.031604 msec, Min: 89.430885
+
+
+CPU BATCH 512
+Running sequential router code on CPU only
+
+Bandwidth: 182367.976572 packets per second  (64B pkts ==> 11.671551 Gbps)
+
+Average processing time: 174.402867 msec
+Average packet get time: 2631.282154 msec
+Average packet send time: 0.084539 msec
+
+Average latency: Max: 2806.009378 msec, Min: 174.625000
+
+
+CPU BATCH 1024
+Running sequential router code on CPU only
+
+Bandwidth: 182055.432540 packets per second  (64B pkts ==> 11.651548 Gbps)
+
+Average processing time: 350.547868 msec
+Average packet get time: 5270.877447 msec
+Average packet send time: 0.103781 msec
+
+Average latency: Max: 5621.789220 msec, Min: 350.792438
+
+
+CPU BATCH 2048
+Running sequential router code on CPU only
+
+Bandwidth: 181513.739042 packets per second  (64B pkts ==> 11.616879 Gbps)
+
+Average processing time: 697.227419 msec
+Average packet get time: 10579.625806 msec
+Average packet send time: 0.175806 msec
+
+Average latency: Max: 11277.348925 msec, Min: 697.557527
+
+
+CPU BATCH 4096
+Running sequential router code on CPU only
+
+Bandwidth: 183047.628712 packets per second  (64B pkts ==> 11.715048 Gbps)
+
+Average processing time: 1384.523454 msec
+Average packet get time: 20980.881663 msec
+Average packet send time: 0.130064 msec
+
+Average latency: Max: 22365.849680 msec, Min: 1384.805970
+
+
+CPU BATCH 8192
+Running sequential router code on CPU only
+
+Bandwidth: 181995.782053 packets per second  (64B pkts ==> 11.647730 Gbps)
+
+Average processing time: 2793.525751 msec
+Average packet get time: 42196.416309 msec
+Average packet send time: 0.171674 msec
+
+Average latency: Max: 44990.547210 msec, Min: 2793.888412
+
+
+CPU BATCH 16384
+Running sequential router code on CPU only
+
+Bandwidth: 178679.451501 packets per second  (64B pkts ==> 11.435485 Gbps)
+
+Average processing time: 5640.791304 msec
+Average packet get time: 85638.773913 msec
+Average packet send time: 0.173913 msec
+
+Average latency: Max: 91280.478261 msec, Min: 5641.282609
