@@ -33,7 +33,8 @@
 #define FIREWALL
 //#define LPM_TRIE
 
-#define PINNED_MEMORY
+//#define PINNED_MEMORY
+
 
 
 __global__ void process_packets(packet *p, int *results, int num_packets, int block_size);
@@ -55,6 +56,7 @@ inline cudaError_t check_error(cudaError_t error, char* error_str, int line)
 {
 	if (error != cudaSuccess) {
 		fprintf(stderr, "ERROR: %s returned error (line %d): %s\n", error_str, line, cudaGetErrorString(error));
+        cudaDeviceReset();
 		exit(EXIT_FAILURE);
 	}
 	return error;
@@ -67,6 +69,7 @@ inline void check_malloc(void *p, char* error_str, int line)
 {
 	if (p == NULL) {
 		fprintf(stderr, "ERROR: Failed to allocate %s (line %d)\n", error_str, line);
+        cudaDeviceReset();
 		exit(EXIT_FAILURE);
 	}
 }

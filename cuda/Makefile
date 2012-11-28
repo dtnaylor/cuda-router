@@ -123,6 +123,8 @@ CXXFLAGS := -DCUDA_CODE
 # Target rules
 all: build
 
+stream: stream_router
+
 build: router
 
 firewall.o: firewall.cu
@@ -134,14 +136,19 @@ lpm_trie.o: lpm_trie.cu
 router.o: router.cu
 	$(NVCC) $(NVCCFLAGS) $(EXTRA_NVCCFLAGS) $(GENCODE_FLAGS) $(INCLUDES) -o $@ -c $<
 
+stream_router.o: stream_router.cu
+	$(NVCC) $(NVCCFLAGS) $(EXTRA_NVCCFLAGS) $(GENCODE_FLAGS) $(INCLUDES) -o $@ -c $<
 
 router: router.o firewall.o lpm_trie.o ../packet-collector/packet-collector.o ../cuda-prefixtree/mymalloc.o ../cuda-prefixtree/tree.o ../cuda-prefixtree/cuda-lookup.o
 	$(GCC) $(CCFLAGS) -o $@ $+ $(LDFLAGS) $(EXTRA_LDFLAGS)
 
+stream_router: stream_router.o firewall.o lpm_trie.o ../packet-collector/packet-collector.o ../cuda-prefixtree/mymalloc.o ../cuda-prefixtree/tree.o ../cuda-prefixtree/cuda-lookup.o
+	$(GCC) $(CCFLAGS) -o $@ $+ $(LDFLAGS) $(EXTRA_LDFLAGS)
+	mv stream_router router
 
 run: build
 	./router
 
 clean:
-	rm -f router router.o firewall.o lpm_trie.o
+	rm -f router router.o stream_router.o firewall.o lpm_trie.o
 	cd ../packet-collector; make clean
