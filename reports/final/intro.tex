@@ -16,14 +16,14 @@ networking community for two primary reasons:
 \begin{enumerate}
 	\item Commodity hardware has improved significantly, making it possible for
 	software routers to achieve line rates. For example, PacketShader forwards
-	packets at 40 Gbps. \TODO{cite}
+	packets at 40 Gbps \cite{Han}.
 
 	\item Researchers are introducing increasingly more complex packet
 	processing functionality. A good example of this trend is Software Defined
-	Networking \TODO{cite}, wherein each packet is classified as belonging to
+	Networking \cite{OpenFlow}, wherein each packet is classified as belonging to
 	one or more \emph{flows} and is forwarded accordingly; moreover, the
 	\emph{flow rules} governing forwarding behavior can be updated on the order
-	of minutes or even seconds \TODO{cite}.
+	of minutes \cite{OpenFlow} or even seconds \cite{Jafarian}.
 \end{enumerate}
 
 Part of this new-found attention for software routers has been an exploration
@@ -32,7 +32,7 @@ software-based packet processing. Since packet processing is naturally an SIMD
 application, a GPU-based router is a promising candidate. The primary job of a
 router is to decide, based on a packet's destination address, through which
 output port the packet should be sent. Since modern GPUs contain hundreds of
-cores \TODO{cite}, they could potentially perform this lookup on hundreds of
+cores \cite{Ryoo}, they could potentially perform this lookup on hundreds of
 packets in parallel. The same goes for more complex packet processing
 functions, like flow rule matching in a software defined network (SDN).
 

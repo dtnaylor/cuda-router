@@ -34,10 +34,30 @@ this way, we never let CPU cycles go idle while the GPU is working.\\
    \label{fig:pipelining}
 \end{figure}
 
-\noindent \textbf{Batching.} Although the GPU can process hundreds of packets
-in parallel (unlike the CPU), there is, of course, a cost: non-trivial overhead
-is incurred in transferring packets to the GPU and copying results back from
-it. To amortize this cost, we process packets in batches... \TODO{Finish}
+\medskip \noindent \textbf{Batching.} Although the GPU can process hundreds of
+packets in parallel (unlike the CPU), there is, of course, a cost: non-trivial
+overhead is incurred in transferring packets to the GPU and copying results
+back from it. To amortize this cost, we process packets in batches. As packets
+arrive at our router, we buffer them until we have a batch of some fixed size
+\texttt{BATCH\_SIZE}, at which point we copy the whole batch to the GPU for
+processing.
+
+Though batching improves throughput, it can have an adverse effect on latency.
+The first packet of a batch arrives at the router and is buffered until the
+remaining \texttt{BATCH\_SIZE}-1 packets arrive rather than being processed
+right away. To ensure that no packet suffers unbounded latency (i.e., in case
+there is a lull in traffic and the batch doesn't fill), we introduce another
+parameter: \texttt{MAX\_WAIT}. If a batch doesn't fill after \texttt{MAX\_WAIT}
+milliseconds, the partial batch is transferred to GPU for processing. We
+evaluate this tradeoff in \S\ref{sec:eval}.
+
+\medskip \noindent \textbf{Mapped Memory.} Newer GPUs (such as ours) have the
+ability to directly access host memory that has been \emph{pinned and mapped},
+eliminating steps (3) and (5). Though data clearly still needs to be copied to
+the GPU and back, using mapped memory rather than explicitly performing the
+entire copy at once allows CUDA to copy individual lines ``intelligently'' as
+needed, overlapping copies with execution. We evaluate the impact of using
+mapped memory in \S\ref{sec:eval} as well.
 
 \subsection{Packet Processing}
 
