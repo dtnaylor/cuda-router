@@ -124,10 +124,10 @@ version doesn't need to worry about (Figure~\ref{fig:iter1-cpu-breakdown}).
 	\subfigure[Processing Time vs. Batch Size]{\includegraphics[height=3.5cm]{figs/batch_size_both_par_proc.pdf}\label{fig:iter1-proc}}
 	\medskip
 	
-	\subfigure[Breakdown of GPU Time]{\includegraphics[height=3.5cm]{figs/batch_size_both_par_gpu_p.pdf}\label{fig:iter1-gpu-breakdown}}
+	\subfigure[Breakdown of Relative GPU Time]{\includegraphics[height=3.5cm]{figs/batch_size_both_par_gpu_p.pdf}\label{fig:iter1-gpu-breakdown}}
 	
 	\medskip
-	\subfigure[Breakdown of CPU Time]{\includegraphics[height=3.5cm]{figs/batch_size_both_par_cpu_p.pdf}\label{fig:iter1-cpu-breakdown}}
+	\subfigure[Breakdown of Relative CPU Time]{\includegraphics[height=3.5cm]{figs/batch_size_both_par_cpu_p.pdf}\label{fig:iter1-cpu-breakdown}}
 
     \caption{Iteration 1 Results}
 	\label{fig:iter1}
@@ -158,7 +158,7 @@ suggests that we should try to cut down copy time from the GPU as well.
     \subfigure[Latency vs. Batch Size]{\includegraphics[height=4cm]{figs/batch_size_header_both_par_lat.pdf}\label{fig:iter2-lat}}
 
    	\medskip
-	\subfigure[Breakdown of GPU Time]{\includegraphics[height=4cm]{figs/batch_size_header_both_par_gpu_p.pdf}\label{fig:iter2-gpu-breakdown}}
+	\subfigure[Breakdown of Relative GPU Time]{\includegraphics[height=4cm]{figs/batch_size_header_both_par_gpu_p.pdf}\label{fig:iter2-gpu-breakdown}}
 
     \caption{Iteration 2 Results}
 	\label{fig:iter2}
@@ -186,7 +186,7 @@ total time in Figure~\ref{fig:iter2-gpu-breakdown}).
     \subfigure[Latency vs. Batch Size]{\includegraphics[height=4cm]{figs/batch_size_header_pinned_both_par_lat.pdf}\label{fig:iter3-lat}}
 
    	\medskip
-	\subfigure[Breakdown of GPU Time]{\includegraphics[height=4cm]{figs/batch_size_header_pinned_both_par_gpu_p.pdf}\label{fig:iter3-gpu-breakdown}}
+	\subfigure[Breakdown of Relative GPU Time]{\includegraphics[height=4cm]{figs/batch_size_header_pinned_both_par_gpu_p.pdf}\label{fig:iter3-gpu-breakdown}}
 
     \caption{Iteration 3 Results}
 	\label{fig:iter3}
@@ -195,14 +195,44 @@ total time in Figure~\ref{fig:iter2-gpu-breakdown}).
 
 \subsubsection{Iteration Four}
 
-\TODO{Talk about eliminating gather / send time, and how this at least indicates that with better IO we would do very well.}
+Having eliminated the overhead of copying data to and from the GPU, the third
+iteration of our CPU/GPU router only displays meager gains over the CPU-only
+version. We turn to a breakdown by function of the absolute runtime of each
+(Figure~\ref{fig:iter3-breakdown}) to understand why.
+\begin{figure*}
+    \centering
+    \subfigure[Breakdown of Absolute GPU Time]{\includegraphics[height=3.7cm]{figs/batch_size_header_pinned_both_par_gpu.pdf}\label{fig:iter3-gpu-breakdown}}
+	\quad
+    \subfigure[Breakdown of Absolute CPU Time]{\includegraphics[height=3.7cm]{figs/batch_size_header_pinned_both_par_cpu.pdf}\label{fig:iter3-cpu-breakdown}}
 
+    \caption{Iteration 3 Breakdown}
+	\label{fig:iter3-breakdown}
+\end{figure*}
+
+The CPU-only router clearly spends more time in the processing function;
+however, both spend nearly all their time performing packet I/O (that is,
+receiving packets from Click and forwarding them after processing), so the
+difference is processing times has little effect. This suggests that our
+Click-based packet generator is the bottleneck. (Indeed, PacketShader spent a
+great amount of time developing highly optimized drivers for their NIC
+\cite{Han}.) To test this hypothesis, we implemented a version of our packet
+generator that pre-generates a buffer of random packets and returns this buffer
+immediately when queried for a new batch; similarly, when results are returned
+so that packets may be forwarded, the call returns immediately rather than
+waiting for the whole batch to be sent.
+
+Sure enough, the CPU/GPU router now operates at 3X the bandwidth of the
+CPU-only version and with $1/5$th the latency (Figure~\ref{fig:iter4}). Of
+course, the bandwidth achieved by both is completely unrealistic (instantaneous
+packet I/O is impossible), but these results indicate that with optimized
+packet I/O drivers like PacketShader's, our CPU/GPU router would indeed
+outperform our CPU-only one.
 
 \begin{figure*}
     \centering
-    \subfigure[Bandwidth vs. Batch Size]{\includegraphics[height=4.5cm]{figs/batch_size_header_pinned_immediate_both_par_bw.pdf}\label{fig:iter4.5-bw}}
+    \subfigure[Bandwidth vs. Batch Size]{\includegraphics[height=4.5cm]{figs/batch_size_header_pinned_immediate_both_par_bw.pdf}\label{fig:iter4-bw}}
 	\quad
-    \subfigure[Latency vs. Batch Size]{\includegraphics[height=4.5cm]{figs/batch_size_header_pinned_immediate_both_par_lat.pdf}\label{fig:iter4.5-lat}}
+    \subfigure[Latency vs. Batch Size]{\includegraphics[height=4.5cm]{figs/batch_size_header_pinned_immediate_both_par_lat.pdf}\label{fig:iter4-lat}}
 
     \caption{Iteration 4 Results}
 	\label{fig:iter4}
