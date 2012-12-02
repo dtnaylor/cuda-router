@@ -30,10 +30,13 @@
 
 // Change this define to determine which processing function is used
 // (e.g., firewall, longest prefix match, etc.)
-#define FIREWALL
+//#define FIREWALL
 //#define LPM_TRIE
+//#define BOTH_SEQ
+#define BOTH_PAR
 
-//#define PINNED_MEMORY
+//#define PINNED_PACKET_MEMORY  // packet arrays are pinned and mapped
+#define PINNED_MEMORY  // results arrays are pinned and mapped
 
 
 
@@ -43,7 +46,7 @@ void teardown();
 void process_packets_sequential(packet *p, int *results, int num_packets);
 void setup_sequential();
 
-#ifdef FIREWALL
+#if defined FIREWALL || defined BOTH_SEQ || defined BOTH_PAR
 int set_num_rules(int s);
 int get_num_rules();
 #endif /* FIREWALL */

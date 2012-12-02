@@ -3,6 +3,9 @@
 #include "../cuda-prefixtree/tree.h"
 #include "../cuda-prefixtree/cuda-lookup.cuh"
 
+
+#ifdef LPM_TRIE
+
 #ifdef USEDEBUG
     int lpmtriegpudebug = 1;
     #define DEBUG(...) do { if (lpmtriegpudebug) fprintf(stdout, __VA_ARGS__); } while (0)
@@ -10,10 +13,6 @@
     int lpmtriegpudebug = 0;
     #define DEBUG(...) (void)0
 #endif
-
-
-
-#ifdef LPM_TRIE
 
 #define PREFIX_FILE "prefixes.txt"
 

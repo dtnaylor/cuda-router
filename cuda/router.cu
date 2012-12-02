@@ -71,15 +71,20 @@ int run(int argc, char **argv, int block_size, int server_sockfd, udpc client)
 	// We will alternate between filling and processing these two buffers
 	// (at any given time one of the buffers will either be being filled
 	// or being processed)
-	packet* h_p1 = (packet *)malloc(buf_size);
+	packet *h_p1, *h_p2;
+#ifdef PINNED_PACKET_MEMORY
+	unsigned int pflags = cudaHostAllocMapped;
+	check_error(cudaHostAlloc((void**)&h_p1, buf_size, pflags), "hostAlloc h_p1", __LINE__);
+	check_error(cudaHostAlloc((void**)&h_p2, buf_size, pflags), "hostAlloc h_p2", __LINE__);
+#else
+	h_p1 = (packet *)malloc(buf_size);
 	check_malloc(h_p1, "h_p1", __LINE__);
+	h_p2 = (packet *)malloc(buf_size);
+	check_malloc(h_p2, "h_p2", __LINE__);
+#endif /* PINNED_PACKET_MEMORY */
   	for(int i = 0; i < get_batch_size(); i++) {
   	  h_p1[i].payload = (char *)malloc(BUF_SIZE*sizeof(char));
 	  check_malloc(h_p1[i].payload, "h_p1[i].payload", __LINE__);
-  	}
-	packet* h_p2 = (packet *)malloc(buf_size);
-	check_malloc(h_p2, "h_p2", __LINE__);
-  	for(int i = 0; i < get_batch_size(); i++) {
   	  h_p2[i].payload = (char *)malloc(BUF_SIZE*sizeof(char));
 	  check_malloc(h_p2[i].payload, "h_p2[i].payload", __LINE__);
   	}
@@ -99,10 +104,15 @@ int run(int argc, char **argv, int block_size, int server_sockfd, udpc client)
 
 	// Allocate device memory for up to batch_size packets
 	// TODO: wait and allocate only the amount needed after we receive?
-	packet *d_p1;
+	packet *d_p1, *d_p2;
+#ifdef PINNED_PACKET_MEMORY
+	check_error(cudaHostGetDevicePointer((void **)&d_p1, (void *)h_p1, 0), "cudaGetDevicePointer", __LINE__);
+	check_error(cudaHostGetDevicePointer((void **)&d_p2, (void *)h_p2, 0), "cudaGetDevicePointer", __LINE__);
+#else
 	check_error(cudaMalloc((void **) &d_p1, buf_size), "cudaMalloc d_p1", __LINE__);
-	packet *d_p2;
 	check_error(cudaMalloc((void **) &d_p2, buf_size), "cudaMalloc d_p2", __LINE__);
+#endif /* PINNED_PACKET_MEMORY */
+
 	// Allocate device memory for results
 	int *d_results1, *d_results2;
 #ifdef PINNED_MEMORY
@@ -120,6 +130,10 @@ int run(int argc, char **argv, int block_size, int server_sockfd, udpc client)
 	if (get_batch_size() % threads_in_block != 0) {
 		blocks_in_grid++;  // need an extra block for the extra threads
 	}
+
+#ifdef BOTH_PAR
+	dim3 blockDims(blocks_in_grid, 2);
+#endif /* BOTH_PAR */
 
 
 	// Run any processing-specific setup code needed
@@ -196,7 +210,11 @@ int run(int argc, char **argv, int block_size, int server_sockfd, udpc client)
 
 			// Execute the kernel
 			PRINT(V_DEBUG, "vvvvv   Begin processing %d packets   vvvvv\n\n", num_packets_current);
+#ifdef BOTH_PAR
+			process_packets<<< blockDims, threads_in_block >>>(d_p_current, d_results_current, num_packets_current, block_size);
+#else
 			process_packets<<< blocks_in_grid, threads_in_block >>>(d_p_current, d_results_current, num_packets_current, block_size);
+#endif /* BOTH_PAR */
 
 #ifdef MEASURE_MICROBENCHMARKS
 			// Record the stop event
@@ -307,7 +325,11 @@ int run(int argc, char **argv, int block_size, int server_sockfd, udpc client)
 #ifdef MEASURE_MICROBENCHMARKS
 		gettimeofday(&micro_copy_to_start, NULL);
 #endif /* MEASURE_MICROBENCHMARKS */
+
+#ifndef PINNED_PACKET_MEMORY
 		check_error(cudaMemcpy(d_p_next, h_p_next, buf_size, cudaMemcpyHostToDevice), "cudaMemcpy (d_p_next, h_p_next)", __LINE__);
+#endif /* PINNED_PACKET_MEMORY */
+
 #ifdef MEASURE_MICROBENCHMARKS
 		gettimeofday(&micro_copy_to_stop, NULL);
 		avg_micro_copy_to += (micro_copy_to_stop.tv_sec - micro_copy_to_start.tv_sec) * 1000000.0 + (micro_copy_to_stop.tv_usec - micro_copy_to_start.tv_usec);
@@ -395,10 +417,15 @@ int run(int argc, char **argv, int block_size, int server_sockfd, udpc client)
 
 
 	// Clean up memory
+#ifdef PINNED_PACKET_MEMORY
+	check_error(cudaFreeHost(h_p1), "cudaFreeHost", __LINE__);
+	check_error(cudaFreeHost(h_p2), "cudaFreeHost", __LINE__);
+#else
 	free(h_p1);
 	free(h_p2);
 	cudaFree(d_p1);
 	cudaFree(d_p2);
+#endif /* PINNED_PACKET_MEMORY */
 #ifdef PINNED_MEMORY
 	check_error(cudaFreeHost(h_results1), "cudaFreeHost", __LINE__);
 	check_error(cudaFreeHost(h_results2), "cudaFreeHost", __LINE__);

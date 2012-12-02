@@ -49,19 +49,19 @@ def main(argv):
             stats[cur_mode][cur_ind_var_val]['bw'] = float(arr[9])
         elif 'processing time' in line:
             arr = line.split(' ')
-            stats[cur_mode][cur_ind_var_val]['proc_time'] = float(arr[3])
+            stats[cur_mode][cur_ind_var_val]['proc_time'] = float(arr[3])/1000
         elif 'get time' in line:
             arr = line.split(' ')
-            stats[cur_mode][cur_ind_var_val]['get_time'] = float(arr[4])
+            stats[cur_mode][cur_ind_var_val]['get_time'] = float(arr[4])/1000
         elif 'send time' in line:
             arr = line.split(' ')
-            stats[cur_mode][cur_ind_var_val]['send_time'] = float(arr[4])
+            stats[cur_mode][cur_ind_var_val]['send_time'] = float(arr[4])/1000
         elif 'copy to device time' in line:
             arr = line.split(' ')
-            stats[cur_mode][cur_ind_var_val]['copy_to_device_time'] = float(arr[6])
+            stats[cur_mode][cur_ind_var_val]['copy_to_device_time'] = float(arr[6])/1000
         elif 'copy from device time' in line:
             arr = line.split(' ')
-            stats[cur_mode][cur_ind_var_val]['copy_from_device_time'] = float(arr[6])
+            stats[cur_mode][cur_ind_var_val]['copy_from_device_time'] = float(arr[6])/1000
         elif 'latency' in line:
             arr = line.split(' ')
             stats[cur_mode][cur_ind_var_val]['max_latency'] = float(arr[3])/1000

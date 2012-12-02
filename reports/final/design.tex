@@ -20,6 +20,8 @@ from main memory with another DMA and forwards them.
 \end{figure}
 
 \subsection{GPU Programming Issues}
+\label{sec:gpu-issues}
+
 \noindent \textbf{Pipelining.} As with almost any CUDA program, ours employs
 pipelining for data transfers between main memory and GPU memory. While the GPU
 is busy processing a batch of packets, we can utilize the CPU to copy the

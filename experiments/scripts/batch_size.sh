@@ -38,6 +38,9 @@ sleep 2
 echo -e "\n\nGPU BATCH 16384"
 $ROUTER_DIR/router -runtime=$RUNTIME -batch=16384
 sleep 2
+echo -e "\n\nGPU BATCH 65536"
+$ROUTER_DIR/router -runtime=$RUNTIME -batch=65536
+sleep 2
 
 
 echo -e "\n\nCPU BATCH 32"
@@ -69,6 +72,9 @@ $ROUTER_DIR/router -sequential -runtime=$RUNTIME -batch=8192
 sleep 2
 echo -e "\n\nCPU BATCH 16384"
 $ROUTER_DIR/router -sequential -runtime=$RUNTIME -batch=16384
+sleep 2
+echo -e "\n\nCPU BATCH 65536"
+$ROUTER_DIR/router -sequential -runtime=$RUNTIME -batch=65536
 sleep 2
 
 killall click

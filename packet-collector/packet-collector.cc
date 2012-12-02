@@ -3,6 +3,10 @@
 int batch_size = DEFAULT_BATCH_SIZE;
 int batch_wait = DEFAULT_BATCH_WAIT;
 
+#ifdef RETURN_PACKETS_IMMEDIATELY
+packet *random_buf = NULL;
+#endif
+
 int init_server_socket() {
   int sockfd;
   struct sockaddr_in servaddr;
@@ -45,9 +49,29 @@ udpc init_client_socket() {
   return client;
 }
 
+#ifdef RETURN_PACKETS_IMMEDIATELY
+void generate_random_packets() {
+
+	if (random_buf != NULL) {
+		free(random_buf);
+	}
+	random_buf = (packet*)malloc( sizeof(packet) * get_batch_size());
+  
+  for(int i = 0; i < get_batch_size(); i++) {
+    for(int j = 0; j < IP_HEADER_SIZE; j++) random_buf[i].ip[j] = (char)rand();
+    for(int j = 0; j < UDP_HEADER_SIZE; j++) random_buf[i].udp[j] = (char)rand();
+    random_buf[i].payload = (char *)malloc(BUF_SIZE*sizeof(char));
+    for(int j = 0; j < BUF_SIZE; j++) random_buf[i].payload[j] = (char)rand();
+  }
+}
+#endif /* RETURN_PACKETS_IMMEDIATELY */
+
 int set_batch_size(int s) {
   if (s > 0) {
     batch_size = s;
+#ifdef RETURN_PACKETS_IMMEDIATELY
+	generate_random_packets();
+#endif /* RETURN_PACKETS_IMMEDIATELY */
   }
   return batch_size;
 }
@@ -74,17 +98,14 @@ void *timer(void *data) {
 }
 
 
-#ifdef RETURN_PACKETS_IMMEDIATELY
-
-packet random_buf[DEFAULT_BATCH_SIZE];
-
-#endif
 
 int get_packets(int sockfd, packet* p) {
 #ifdef RETURN_PACKETS_IMMEDIATELY
 
-  memcpy(p, random_buf, sizeof(packet)*DEFAULT_BATCH_SIZE);
-  return DEFAULT_BATCH_SIZE;
+	if (random_buf == NULL) generate_random_packets();
+
+  memcpy(p, random_buf, sizeof(packet)*get_batch_size());
+  return get_batch_size();
 
 #endif
 
@@ -118,23 +139,18 @@ int get_packets(int sockfd, packet* p) {
 }
 
 int send_packets(udpc client, packet* p, int num_packets, int* a) {
+#ifndef RETURN_PACKETS_IMMEDIATELY
   for(int i = 0; i < num_packets && a[i] >= 0; i++) {
     sendto(client.fd, p[i].payload, p[i].size, 0, (struct sockaddr*)&client.sa, sizeof(client.sa));
   }
+#endif /* RETURN_PACKETS_IMMEDIATELY */
   return 0;
 }
 
 #ifndef CUDA_CODE
 int main() {	
   #ifdef RETURN_PACKETS_IMMEDIATELY
-
-  for(int i = 0; i < DEFAULT_BATCH_SIZE; i++) {
-    for(int j = 0; j < IP_HEADER_SIZE; j++) random_buf[i].ip[j] = (char)rand();
-    for(int j = 0; j < UDP_HEADER_SIZE; j++) random_buf[i].udp[j] = (char)rand();
-    random_buf[i].payload = (char *)malloc(BUF_SIZE*sizeof(char));
-    for(int j = 0; j < BUF_SIZE; j++) random_buf[i].payload[j] = (char)rand();
-  }
-
+	genereate_random_packets();
   #endif
 
   int server_sockfd = init_server_socket();
