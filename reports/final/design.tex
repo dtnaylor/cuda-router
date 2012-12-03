@@ -70,7 +70,11 @@ flow rules) and might also include deciding whether or not to drop the packet
 (by comparing the packet header against a set of firewall rules or comparing
 the header and payload to a set of intrusion detection system rules).  In our
 system we implement two packet processing functions: longest prefix match and
-firewall rule matching. \TODO{Justify why?}
+firewall rule matching. We pick longest prefix match, because it is the core 
+algorithm used by routers to determine which port to forward a packet on. We
+additionally choose firewall rule matching as it is a very common feature on
+commodity routers that is simple to implement (only requiring packet header
+inspection).
 
 \subsubsection{Longest Prefix Match}
 \TODO{Bruno: describe trie-based algo and DIR-24-8-BASIC}
@@ -80,7 +84,7 @@ firewall rule matching. \TODO{Justify why?}
 A firewall rule is defined by a set of five values (the ``5-tuple''): source
 and destination IP address, source and destination port number, and protocol.
 The protocol identifies who should process the packet after IP (e.g., TCP, UDP,
-or ICMP). Since most traffic is either TCP or UDP \TODO{cite?}, the source and
+or ICMP). Since most traffic is either TCP or UDP \cite{thompson1997wide}, the source and
 destination port numbers are also part of the 5-tuple even though they are not
 part of the network-layer header. If the protocol is ICMP, these fields can
 instead be used to encode the ICMP message typce and code.
