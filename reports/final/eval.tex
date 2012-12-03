@@ -24,7 +24,20 @@ implemented CPU version and a GPU version (the GPU version is a CUDA kernel
 function).
 
 \subsubsection{Packet Generation}
-\TODO{Matt: describe using click generator for ``full-on'' tests and packet trace for ``real-world'' tests}
+We use the Click Modular Router \cite{click} to generate packets for our
+software router framework to process. We modify the standard packet generation
+functions in click to output UDP packets with random source and destination
+addresses as well as random source and destination ports. We have click generate
+these randomly addressed packets as fast as it can and have it send the packets
+up to our software routing framework via a standard Berkley socket between both
+locally hosted applications.
+
+Note that this ``full-on'' kind of workload is essential to test the maximum
+throughput of our router framework, but does not necessarily model a particular
+kind of real-world workload. However, in the case of our system, we wish to
+measure the feasibility of processing packets in software at the same speed as
+specially-designed hardware ASICs. Thus our evaluation focuses on comparisons
+of maximum throughput.
 
 \subsubsection{Packet Processing}
 \label{sec:eval-proc}
@@ -60,7 +73,7 @@ address/port.
 \subsection{Evaluation Metrics}
 \label{sec:metrics}
 
-We use three different metrics to evalute our router's performance. The results
+We use three different metrics to evaluate our router's performance. The results
 in \S\ref{sec:results} present these values averaged over 30 seconds of router
 operation.
 
