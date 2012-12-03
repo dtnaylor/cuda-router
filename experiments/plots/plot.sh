@@ -29,6 +29,7 @@ set size 0.7,0.5
 set style data histograms
 set xtics rotate by 270
 set style histogram rowstacked
+set yrange [0:25]
 set boxwidth 1 relative
 set style fill pattern 1.0 border -1
 set ylabel "Time (ms)"

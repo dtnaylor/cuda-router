@@ -163,7 +163,7 @@ int run(int argc, char **argv, int block_size, int server_sockfd, udpc client)
 #endif /* MEASURE_MICROBENCHMARKS */
 
 #ifdef MEASURE_BANDWIDTH
-	long packets_processed = 0;
+	unsigned long long packets_processed = 0;
 	struct timeval bw_start, bw_stop;
 	gettimeofday(&bw_start, NULL);
 #endif /* MEASURE_BANDWIDTH */
@@ -388,7 +388,7 @@ int run(int argc, char **argv, int block_size, int server_sockfd, udpc client)
 	// Calculate how many packets we processed per second
 	gettimeofday(&bw_stop, NULL);
 	double total_time = (bw_stop.tv_sec - bw_start.tv_sec) + (bw_stop.tv_usec - bw_start.tv_usec) / 1000000.0;
-	double pkts_per_sec = double(packets_processed) / total_time;	
+	double pkts_per_sec = packets_processed / double(total_time);
 
 	PRINT(V_INFO, "Bandwidth: %f packets per second  (64B pkts ==> %f Gbps)\n\n", pkts_per_sec, pkts_per_sec * 64.0 / 1000000.0);
 #endif /* MEASURE_BANDWIDTH */
@@ -503,7 +503,7 @@ int run_sequential(int argc, char **argv, int server_sockfd, udpc client)
 #endif /* MEASURE_MICROBENCHMARKS */
 
 #ifdef MEASURE_BANDWIDTH
-	long packets_processed = 0;
+	long long packets_processed = 0;
 	struct timeval bw_start, bw_stop; gettimeofday(&bw_start, NULL);
 #endif /* MEASURE_BANDWIDTH */
 

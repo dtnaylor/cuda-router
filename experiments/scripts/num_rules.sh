@@ -26,6 +26,9 @@ sleep 2
 echo -e "\n\nGPU NUMRULES 800"
 $ROUTER_DIR/router -runtime=$RUNTIME -numrules=800
 sleep 2
+echo -e "\n\nGPU NUMRULES 1600"
+$ROUTER_DIR/router -runtime=$RUNTIME -numrules=1600
+sleep 2
 
 echo -e "\n\nCPU NUMRULES 25"
 $ROUTER_DIR/router -sequential -runtime=$RUNTIME -numrules=25
@@ -44,6 +47,9 @@ $ROUTER_DIR/router -sequential -runtime=$RUNTIME -numrules=400
 sleep 2
 echo -e "\n\nCPU NUMRULES 800"
 $ROUTER_DIR/router -sequential -runtime=$RUNTIME -numrules=800
+sleep 2
+echo -e "\n\nCPU NUMRULES 1600"
+$ROUTER_DIR/router -sequential -runtime=$RUNTIME -numrules=1600
 sleep 2
 
 

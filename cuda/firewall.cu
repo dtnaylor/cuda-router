@@ -2,7 +2,7 @@
 
 #ifdef FIREWALL
 
-typedef struct _rule {
+typedef struct __align__(16) _rule {
   uint32_t src_ip;
   uint32_t dst_ip;
   uint16_t src_port;
