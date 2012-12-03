@@ -1,8 +1,26 @@
 \section{Discussion and Future Work}
 
-\noindent \textbf{Multithreaded CPU Processing.} 
+\noindent \textbf{Multithreaded CPU Processing.} The comparison of our CPU/GPU
+router to the CPU-only baseline is not completely fair. Our CPU-only router
+operates in a single thread, yielding misleadingly low performance. Any
+CPU-based software router in the real world would certainly spread packet
+processing across multiple cores, and we would be surprised if any core
+software router were run on a machine with fewer than 16 cores.
 
-\medskip \noindent \textbf{Harder Processing Functions.}
+A simple extension of our project would be to parallelize our CPU-only packet
+processing functions with OpenMP to provide more realistic baseline
+measurements.
+
+\medskip \noindent \textbf{Harder Processing Functions.} Even in the final
+iteration of our router, the CPU/GPU version only achieves slightly more than
+three times the bandwidth of the CPU-only version. Though this is by no means
+an improvement to scoff at, the speedup strikes us as being a tad low. We
+suspect the cause is that our packet processing functions are not taxing
+enough; the harder the processing function, the more benefit we should see from
+the massively parallel GPU. This suggests that GPU-based software routers might
+be best suited for complex packet processing like IDS filtering (which requires
+pattern matching against packet payloads) and IPsec processing (which requires
+expensive cryptographic operations).
 
 \medskip \noindent \textbf{Faster Packet I/O.} \TODO{Matt: Briefly talk about how we really need better packet io, like PacketShader's drivers? Mention that Figure \ref{fig:iter4} supports this.}
 
