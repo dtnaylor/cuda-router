@@ -5,7 +5,7 @@
 
 #ifdef OMP_CPU_PROCESSING
 #include <omp.h>
-#define NUM_THREADS 8
+#define NUM_THREADS 64
 #endif
 
 #if defined (BOTH_SEQ) || defined (BOTH_PAR)
@@ -419,10 +419,17 @@ void teardown()
  */
 void process_packets_sequential(packet *p, int *results, int num_packets)
 { 
+
+#ifdef OMP_CPU_PROCESSING
+    omp_set_num_threads(NUM_THREADS);
+#endif
+
 	/**************************************************
 	 *                    FIREWALL                    *
 	 **************************************************/
 	int packet_index;
+    //schedule(dynamic)
+#pragma omp parallel for default(shared) private(packet_index) 
 	for (packet_index = 0; packet_index < get_batch_size(); packet_index++) {
 		struct ip *ip_hdr = (struct ip*)p[packet_index].ip;
 		
@@ -468,15 +475,11 @@ void process_packets_sequential(packet *p, int *results, int num_packets)
 	 **************************************************/
 
     packet_index = 0;
-    int j;
-#ifdef OMP_CPU_PROCESSING
-    omp_set_num_threads(NUM_THREADS);
-#endif
-    
+
     DEBUG("looking up %d packets\n", num_packets);
-#pragma omp parallel for default(shared) private(j) schedule(dynamic)
-    for(j=0; j< num_packets; j++) {
-        packet_index=j;
+    //schedule(dynamic)
+#pragma omp parallel for default(shared) private(packet_index) 
+    for(packet_index=0; packet_index< num_packets; packet_index++) {
     //while(packet_index < num_packets) {
 #ifndef OMP_CPU_PROCESSING
         if(packet_index >= num_packets)
