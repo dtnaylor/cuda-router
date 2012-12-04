@@ -23,6 +23,25 @@ be best suited for complex packet processing like IDS filtering (which requires
 pattern matching against packet payloads) and IPsec processing (which requires
 expensive cryptographic operations).
 
+One of our goals was to explore the best way to schedule multiple packet
+processing functions on the GPU. As a simple example, to schedule both LPM and
+firewall lookup, you could imagine parallelizing per-packet or prallelizing
+per-function (Figure~\ref{fig:scheduling}). We began testing these schemes,
+but, as our processing functions turned out to be ``easy,'' there was little
+difference. We think this is still an interesting question to explore with more
+taxing processing functions.
+
+\begin{figure}
+    \centering
+    \subfigure[Per-packet]{\includegraphics[height=3cm]{figs/per-packet-par.pdf}\label{fig:per-packet-par}}
+
+	\medskip
+    \subfigure[Per-function per-packet]{\includegraphics[height=1.5cm]{figs/per-function-par.pdf}\label{fig:per-function-par}}
+
+    \caption{Scheduling Multiple Processing Functions}
+	\label{fig:scheduling}
+\end{figure}
+
 \medskip \noindent \textbf{Faster Packet I/O.} By far the largest issue we noted
 is that generating and gathering packets from Click contributes to the majority
 of the latency, becoming the dominant part of both CPU and GPU overall
