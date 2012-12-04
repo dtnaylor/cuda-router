@@ -29,7 +29,7 @@ software router framework to process. We modify the standard packet generation
 functions in click to output UDP packets with random source and destination
 addresses as well as random source and destination ports. We have click generate
 these randomly addressed packets as fast as it can and have it send the packets
-up to our software routing framework via a standard Berkley socket between both
+up to our software routing framework via a standard Berkeley socket between both
 locally hosted applications.
 
 Note that this ``full-on'' kind of workload is essential to test the maximum
@@ -204,7 +204,7 @@ suggest --- the copy-from-device time we eliminated was a small portion of the
 total time in Figure~\ref{fig:iter2-gpu-breakdown}).
 
 
-\begin{figure}
+\begin{figure} e
     \centering
     \subfigure[Bandwidth vs. Batch Size]{\includegraphics[height=4cm]{figs/batch_size_header_pinned_both_par_bw.pdf}\label{fig:iter3-bw}}
 

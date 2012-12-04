@@ -12,7 +12,7 @@ A simple extension of our project would be to parallelize our CPU-only packet
 processing functions with OpenMP to provide more realistic baseline
 measurements.
 
-We have implemented a simple multi-threaded version. Our preliminary results show that OpenMP can dramatically improve the performance. By tuning the number of threads and the batch size, we could increase the bandwidth of up one order of magnitude, with respect to the mono-thread version. However, the packet processing on the GPU still outperforms that on the CPU, being around 20\% faster. More investigation is however required to understand the impact of the parameters on the performance.
+We have implemented a simple multi-threaded version. Our preliminary results show that OpenMP can dramatically improve the performance. By tuning the number of threads and the batch size, we could increase the bandwidth up to one order of magnitude, with respect to the mono-thread version. However, the packet processing on the GPU still outperforms that on the CPU, being around 20\% faster. More investigation is however required to understand the impact of the parameters on the performance.
 
 \medskip \noindent \textbf{Harder Processing Functions.} Even in the final
 iteration of our router, the CPU/GPU version only achieves slightly more than
@@ -27,7 +27,7 @@ expensive cryptographic operations).
 
 One of our goals was to explore the best way to schedule multiple packet
 processing functions on the GPU. As a simple example, to schedule both LPM and
-firewall lookup, you could imagine parallelizing per-packet or prallelizing
+firewall lookup, you could imagine parallelizing per-packet or parallelizing
 per-function (Figure~\ref{fig:scheduling}). We began testing these schemes,
 but, as our processing functions turned out to be ``easy,'' there was little
 difference. We think this is still an interesting question to explore with more
@@ -69,7 +69,7 @@ CUDA Streams provide an interesting mechanism to optimize GPU-based
 applications. Basically, CUDA allows to assign operations (like kernel
 execution and \emph{asynchronous} data transfer to and from the device) to
 streams. Then, the stream executions are overlapped in such a way that similar
-operations of different stream do not interfere with each other (i.e., a kernel
+operations of different streams do not interfere with each other (i.e., a kernel
 execution in stream1 and a data transfer in stream2 can be performed in
 parallel). The high level idea is quite similar to that of instruction
 pipelining.
