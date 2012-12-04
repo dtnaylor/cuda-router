@@ -42,12 +42,19 @@ of maximum throughput.
 \subsubsection{Packet Processing}
 \label{sec:eval-proc}
 
-\noindent \textbf{Longest Prefix Match.} First of all, since CUDA provides limited support for dynamic data structures such as a trie, we adapted the algorithm to run on the GPU. In particular, in the initial setup of the trie, we serialize the data structure on an array, so that it can be easily transferred on the GPU's memory.
+\noindent \textbf{Longest Prefix Match.} First of all, since CUDA provides
+limited support for dynamic data structures such as a trie, we adapted the
+algorithm to run on the GPU. In particular, in the initial setup of the trie,
+we serialize the data structure into an array, so that it can be easily
+transferred on the GPU's memory.
 
-In order to work with a realistic dataset, we initialized the FIB with the prefixes in the Internet belonging to actual Autonomous Systems. The list has been retrieved from CAIDA \cite{routeviews}, which periodically stores a simplified version of its RouteViews Collectors' BGP tables. Overall, the size of the trie turns out to be a few tens of megabytes large. Once built, the trie is transferred to the GPU for Click-generated packet processing.
+In order to work with a realistic dataset, we initialized the FIB with the
+prefixes in the Internet belonging to actual Autonomous Systems. The list has
+been retrieved from CAIDA \cite{routeviews}, which periodically stores a
+simplified version of its RouteViews Collectors' BGP tables. Overall, the size
+of the trie turns out to be a few tens of megabytes large. Once built, the
+serialized trie is transferred to the GPU to be used during lookup.
 
-%Describe the FIB we use...\\
-%\TODO{Bruno: describe using RouteViews? FIB...}
 
 \noindent \textbf{Firewall Rule Matching.} To evaluate the performance of our
 router's firewall rule matching function, we generate a set of random firewall
