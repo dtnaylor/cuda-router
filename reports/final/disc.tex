@@ -36,11 +36,30 @@ zero-copy access to DRAM that is memory mapped in the GPU. We could emulate this
 by having Click copy packets directly to application DRAM rather than first
 sending the packets to the application via a socket.
 
-\medskip \noindent \textbf{Streams.} The typical use of a GPU involves the following operations: a set of tasks and input data is first collected, transferred to the GPU, processed, and eventually the output is copied back to the host device. These operations are performed cyclically, often on independent data, as in the case of our packet processing applications. Since the CUDA and host device are separate processing unit, it is critical for performance to maximize the concurrency of such operations.
+\medskip \noindent \textbf{Streams.} The typical use of a GPU involves the
+following operations: a set of tasks and input data is first collected,
+transferred to the GPU, processed, and eventually the output is copied back to
+the host device. These operations are performed cyclically, often on
+independent data, as in the case of our packet processing applications. Since
+the CUDA and host device are separate processing unit, it is critical for
+performance to maximize the concurrency of such operations.
 
-CUDA Streams provide an interesting mechanism to optimize GPU-based applications. Basically, CUDA allows to assign operations (like kernel execution and \emph{asynchronous} data transfer to and from the device) to streams. Then, the stream executions are overlapped in such a way that similar operations of different stream do not interfere with each other (i.e., a kernel execution in stream1 and a data transfer in stream2 can be performed in parallel). The high level idea is quite similar to that of instruction pipelining.
+CUDA Streams provide an interesting mechanism to optimize GPU-based
+applications. Basically, CUDA allows to assign operations (like kernel
+execution and \emph{asynchronous} data transfer to and from the device) to
+streams. Then, the stream executions are overlapped in such a way that similar
+operations of different stream do not interfere with each other (i.e., a kernel
+execution in stream1 and a data transfer in stream2 can be performed in
+parallel). The high level idea is quite similar to that of instruction
+pipelining.
 
-We have implemented a version of our router using CUDA streams. Our preliminary results show that streams indeed increase the parallelism and throughput. Operation overlapping is quite visible in the Visual Profiler. The number of processed packets increases substantially (around 30-40\%). However, more investigation is required on this subject, particularly on the packet generator and on the new issues related to resource management, highlighted by the Visual Profiler.
+We have implemented a version of our router using CUDA streams. Our preliminary
+results show that streams indeed increase the parallelism and throughput.
+Operation overlapping is quite visible in the Visual Profiler. The number of
+processed packets increases substantially (around 30-40\%). However, more
+investigation is required on this subject, particularly on the packet generator
+and on the new issues related to resource management, highlighted by the Visual
+Profiler.
 
 %\TODO{Bruno: Briefly describe CUDA's built-in streams funcitonality}
 
