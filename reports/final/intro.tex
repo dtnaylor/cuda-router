@@ -36,10 +36,17 @@ cores \cite{Ryoo}, they could potentially perform this lookup on hundreds of
 packets in parallel. The same goes for more complex packet processing
 functions, like flow rule matching in a software defined network (SDN).
 
-\TODO{Describe our goals/contributions}
+This project is motivated by two goals: first, we seek to implement our own
+GPU-based software router and compare our experience to that described by the
+PacketShader team (see \S\ref{sec:related}). Given time (and budget!)
+constraints, it is not feasible to expect our system to surpass PacketShader's
+performance. Our second goal is to explore scheduling the execution of multiple
+packet processing functions (e.g., longest prefix match and firewall rule
+matching).
 
-The rest of this paper is organized as follows: first we review related work that 
-uses the GPU for network processing in Sec \ref{sec:related}. Then we explain the 
-design of our system in Sec \ref{sec:system-design}. We then present our evaluation
-set up, as well as results through multiple iterations in Sec \ref{sec:eval}. Finally we
-discuss future work in Sec \ref{sec:disc} and conclude in Sec \ref{sec:concl}.
+The rest of this paper is organized as follows: first we review related work
+that uses the GPU for network processing in \S\ref{sec:related}. Then we
+explain the design of our system in \S\ref{sec:system-design}. \S\ref{sec:eval}
+describes our evaluation setup and presnets the results of multiple iterations
+of our router. Finally, we discuss our system and future work in
+\S\ref{sec:disc} and conclude in \S\ref{sec:concl}.
