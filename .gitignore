@@ -38,3 +38,5 @@ cuda-prefixtree/tree
 cuda/router
 
 reports/final/final.pdf
+
+cuda/stream_router

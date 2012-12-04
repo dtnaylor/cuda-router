@@ -77,7 +77,13 @@ commodity routers that is simple to implement (only requiring packet header
 inspection).
 
 \subsubsection{Longest Prefix Match}
-\TODO{Bruno: describe trie-based algo and DIR-24-8-BASIC}
+Long Prefix Match is an algorithm for route lookup. It performs a lookup on a data structure, whose entries are prefix-port pairs. The prefixes identify routes and have the form \emph{IP address/mask} (e.g., $192.168.1.0/24$). The ports represent the link to reach the correct the next hop, possibly the destination. Once the router receives a packet to forward, it selects an entry in the data structure such that the prefix is the longest (i.e., with the largest mask) available that matches the destination address in the packet. Then, the associated output port is returned. 
+
+We adapted the algorithm from \cite{sdstrowes} for our work. The algorithm uses a \emph{binary trie}. It is a tree-like data structure that keeps the prefixes ordered for fast lookup. In particular, the position of each internal node in the trie defines a prefix which is constant in the subtree associated to such node. The depth of a prefix is the length of its mask (i.e., between 0 and 32, in our case), which is thus a bound for the lookup time.
+
+The lookup procedure is extremely simple. A depth-first search in run on the trie using the destination address of the packet being processed. So each node lying on the path describing the associated prefix is visited. At each step, it updates the output ports, if an entry is stored (i.e., longest match). Clearly, the last update is returned, possibly none as there may be no matching prefixes. 
+
+%\TODO{Bruno: describe trie-based algo and DIR-24-8-BASIC}
 
 \subsubsection{Firewall Rule Matching}
 
@@ -87,10 +93,10 @@ The protocol identifies who should process the packet after IP (e.g., TCP, UDP,
 or ICMP). Since most traffic is either TCP or UDP \cite{thompson1997wide}, the source and
 destination port numbers are also part of the 5-tuple even though they are not
 part of the network-layer header. If the protocol is ICMP, these fields can
-instead be used to encode the ICMP message typce and code.
+instead be used to encode the ICMP message type and code.
 
 Each rule is also associated with an action (usually ACCEPT or REJECT). If a
-packet matches a rule (that is, the values in the packet's 5-tuple matche those
+packet matches a rule (that is, the values in the packet's 5-tuple match those
 in the rule's 5-tuple), the corresponding action is performed. Rather than
 specifying a particular value, a rule might define a range of matching values
 for one of the fields of its 5-tuple. A rule might also use a wildcard (*) for
