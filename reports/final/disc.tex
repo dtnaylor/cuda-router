@@ -12,6 +12,8 @@ A simple extension of our project would be to parallelize our CPU-only packet
 processing functions with OpenMP to provide more realistic baseline
 measurements.
 
+We have implemented a simple multi-threaded version. Our preliminary results show that OpenMP can dramatically improve the performance. By tuning the number of threads and the batch size, we could increase the bandwidth of up one order of magnitude, with respect to the mono-thread version. However, the packet processing on the GPU still outperforms that on the CPU, being around 20\% faster. More investigation is however required to understand the impact of the parameters on the performance.
+
 \medskip \noindent \textbf{Harder Processing Functions.} Even in the final
 iteration of our router, the CPU/GPU version only achieves slightly more than
 three times the bandwidth of the CPU-only version. Though this is by no means
