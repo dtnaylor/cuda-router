@@ -3,6 +3,11 @@
 #include "../cuda-prefixtree/tree.h"
 #include "../cuda-prefixtree/cuda-lookup.cuh"
 
+#ifdef OMP_CPU_PROCESSING
+#include <omp.h>
+#define NUM_THREADS 8
+#endif
+
 #if defined (BOTH_SEQ) || defined (BOTH_PAR)
 
 #define PREFIX_FILE "prefixes.txt"
@@ -463,11 +468,20 @@ void process_packets_sequential(packet *p, int *results, int num_packets)
 	 **************************************************/
 
     packet_index = 0;
+    int j;
+#ifdef OMP_CPU_PROCESSING
+    omp_set_num_threads(NUM_THREADS);
+#endif
     
     DEBUG("looking up %d packets\n", num_packets);
-    while(packet_index < num_packets) {
+#pragma omp parallel for default(shared) private(j) schedule(dynamic)
+    for(j=0; j< num_packets; j++) {
+        packet_index=j;
+    //while(packet_index < num_packets) {
+#ifndef OMP_CPU_PROCESSING
         if(packet_index >= num_packets)
             return;
+#endif
         
         struct ip *ip_hdr = (struct ip*)p[packet_index].ip;
         int *ret = &(results[packet_index]);
@@ -527,7 +541,7 @@ void process_packets_sequential(packet *p, int *results, int num_packets)
         DEBUG("packet %d (addr %s) port %d\n", packet_index, inet_ntoa(ip_hdr->ip_dst/* *((struct in_addr*)& (HTONL(ip_addr)))*/), results[packet_index]);
 
         
-        packet_index++;
+        //packet_index++;
     }
     DEBUG("packets looked-up\n");
 }

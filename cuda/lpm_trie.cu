@@ -3,6 +3,9 @@
 #include "../cuda-prefixtree/tree.h"
 #include "../cuda-prefixtree/cuda-lookup.cuh"
 
+#ifdef OMP_CPU_PROCESSING
+#include <omp.h>
+#endif
 
 #ifdef LPM_TRIE
 
@@ -195,9 +198,22 @@ void process_packets_sequential(packet *p, int *results, int num_packets)
     int packet_index = 0;
     
     DEBUG("looking up %d packets\n", num_packets);
-    while(packet_index < num_packets) {
+    int i;
+
+    
+#ifdef OMP_CPU_PROCESSING
+    omp_set_num_threads(8);
+#endif
+
+#pragma omp parallel for default(shared) private(i) schedule(dynamic)
+    for(i=0; i<num_packets; i++) {
+    //while(packet_index < num_packets) {
+
+        packet_index = i;
+#ifndef OMP_CPU_PROCESSING
         if(packet_index >= num_packets)
             return;
+#endif
         
         struct ip *ip_hdr = (struct ip*)p[packet_index].ip;
         int *ret = &(results[packet_index]);
@@ -240,10 +256,8 @@ void process_packets_sequential(packet *p, int *results, int num_packets)
                 
                 if ((ip_addr & mask) == node->prefix) {
                     *ret = node->port;
-                    //iterations *=100;
                 }
                 else {
-                    //iterations *=10;
                     break;
                 }
             }
@@ -257,7 +271,7 @@ void process_packets_sequential(packet *p, int *results, int num_packets)
         DEBUG("packet %d (addr %s) port %d\n", packet_index, inet_ntoa(ip_hdr->ip_dst/* *((struct in_addr*)& (HTONL(ip_addr)))*/), results[packet_index]);
 
         
-        packet_index++;
+        //packet_index++;
     }
     DEBUG("packets looked-up\n");
 }

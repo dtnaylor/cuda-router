@@ -120,8 +120,14 @@ INCLUDES      := -I$(CUDA_INC_PATH) -I. -I../common/inc -I../packet-collector -I
 CFLAGS := -DCUDA_CODE
 CXXFLAGS := -DCUDA_CODE
 
+CUDA_OMPFLAGS := -Xcompiler -fopenmp -lgomp -DOMP_CPU_PROCESSING
+CC_OMPFLAGS := -fopenmp -DOMP_CPU_PROCESSING
+
+
 # Target rules
 all: build
+
+omp: omp_router
 
 stream: stream_router
 
@@ -132,6 +138,9 @@ firewall.o: firewall.cu
 
 lpm_trie.o: lpm_trie.cu
 	$(NVCC) $(NVCCFLAGS) $(EXTRA_NVCCFLAGS) $(GENCODE_FLAGS) $(INCLUDES) -o $@ -c $<
+
+both_omp.o: both.cu
+	$(NVCC) $(NVCCFLAGS) $(EXTRA_NVCCFLAGS) $(CUDA_OMPFLAGS) $(GENCODE_FLAGS) $(INCLUDES) -o $@ -c $<
 
 both.o: both.cu
 	$(NVCC) $(NVCCFLAGS) $(EXTRA_NVCCFLAGS) $(GENCODE_FLAGS) $(INCLUDES) -o $@ -c $<
@@ -148,6 +157,10 @@ router: router.o firewall.o lpm_trie.o both.o ../packet-collector/packet-collect
 stream_router: stream_router.o firewall.o lpm_trie.o both.o ../packet-collector/packet-collector.o ../cuda-prefixtree/mymalloc.o ../cuda-prefixtree/tree.o ../cuda-prefixtree/cuda-lookup.o
 	$(GCC) $(CCFLAGS) -o $@ $+ $(LDFLAGS) $(EXTRA_LDFLAGS)
 	mv stream_router router
+
+omp_router: router.o firewall.o lpm_trie.o both_omp.o ../packet-collector/packet-collector.o ../cuda-prefixtree/mymalloc.o ../cuda-prefixtree/tree.o ../cuda-prefixtree/cuda-lookup.o
+	$(GCC) $(CCFLAGS) $(CC_OMPFLAGS) -o $@ $+ $(LDFLAGS) $(EXTRA_LDFLAGS)
+	mv omp_router router
 
 run: build
 	./router
